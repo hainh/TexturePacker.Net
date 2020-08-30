@@ -4,26 +4,29 @@
     <OutputType>WinExe</OutputType>
     <TargetFramework>netcoreapp3.1</TargetFramework>
     <UseWPF>true</UseWPF>
+    <ApplicationIcon>res\tpn.ico</ApplicationIcon>
   </PropertyGroup>
-
-  <ItemGroup>
-    <None Remove="icon.png" />
-    <None Remove="icon128.png" />
-    <None Remove="icon16.png" />
-    <None Remove="icon32.png" />
-    <None Remove="icon64.png" />
-  </ItemGroup>
-
   <ItemGroup>
     <PackageReference Include="SixLabors.ImageSharp" Version="1.0.1" />
   </ItemGroup>
-
   <ItemGroup>
-    <Resource Include="icon.png" />
-    <Resource Include="icon128.png" />
-    <Resource Include="icon16.png" />
-    <Resource Include="icon32.png" />
-    <Resource Include="icon64.png" />
+    <None Update="res\folder128.png">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
+    <None Update="res\folder16.png">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
+    <None Update="res\folder256.png">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
+    <None Update="res\folder32.png">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
+    <None Update="res\folder64.png">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
+    <None Update="res\tpn.ico">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
   </ItemGroup>
-
 </Project>

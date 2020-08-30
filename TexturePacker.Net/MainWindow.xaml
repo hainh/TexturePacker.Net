@@ -5,7 +5,7 @@
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
         xmlns:local="clr-namespace:TexturePacker.Net"
         mc:Ignorable="d"
-        Title="TexturePacker.Net" MinHeight="650" MinWidth="1200" Icon="/icon16.png">
+        Title="TexturePacker.Net" MinHeight="650" MinWidth="1200">
 
     <Grid>
         <Grid.ColumnDefinitions>
@@ -19,7 +19,7 @@
         <Menu Grid.Row="0" Grid.Column="0"
               Background="AliceBlue">
             <MenuItem Header="Help" >
-                <MenuItem Header="About" Icon=""></MenuItem>
+                <MenuItem Header="About" Click="MenuItem_Click"></MenuItem>
             </MenuItem>
         </Menu>
         <Grid Grid.Row="1" Grid.Column="0"> <!-- 3 maim columns -->
@@ -42,26 +42,35 @@
                 <Label Content="Sprites" Grid.Row="0" Grid.Column="0"
                        Background="#FFE4E4E4" BorderBrush="#FF919191" BorderThickness="0,1,1,1" />
                 <TreeView Name="trvImages" Grid.Row="1" Grid.Column="0"
-                          BorderBrush="#FF919191" BorderThickness="0,0,1,1">
-                    <TreeView.ItemTemplate>
-                        <DataTemplate >
-
+                          BorderBrush="#FF919191" BorderThickness="0,0,1,1"
+                          ScrollViewer.HorizontalScrollBarVisibility="Hidden"
+                          VirtualizingStackPanel.IsVirtualizing="True">
+                    <TreeView.Resources>
+                        <HierarchicalDataTemplate DataType="{x:Type local:ItemGroup}" ItemsSource="{Binding Items}">
+                            <StackPanel Orientation="Horizontal"
+                                        ToolTip="{Binding Name}"
+                                        ToolTipService.InitialShowDelay="0">
+                                <Image Source="{Binding Thumbnail}" MaxWidth="20" MaxHeight="15"/>
+                                <TextBlock Text="{Binding Name}" Margin="5,0,0,0"/>
+                            </StackPanel>
+                        </HierarchicalDataTemplate>
+                        <DataTemplate DataType="{x:Type local:Item}">
+                            <StackPanel Orientation="Horizontal"
+                                        ToolTip="{Binding Name}"
+                                        ToolTipService.InitialShowDelay="0">
+                                <Image Source="{Binding Thumbnail}" MaxWidth="20" MaxHeight="15"/>
+                                <TextBlock Text="{Binding Name}" Margin="5,0,0,0"/>
+                            </StackPanel>
                         </DataTemplate>
-                    </TreeView.ItemTemplate>
+                        <Style TargetType="TreeViewItem" >
+                            <Setter Property="IsExpanded" Value="True"/>
+                            <EventSetter Event="RequestBringIntoView" Handler="TreeViewItem_RequestBringIntoView" />
+                        </Style>
+                    </TreeView.Resources>
                 </TreeView>
             </Grid>
             <Canvas Grid.Row="0" Grid.Column="1"> <!-- Second cell -->
-                <Label Content="Hello"
-                       Grid.Column="1"
-                       Grid.Row="0"
-                       Margin="0,0,0,0"
-                       VerticalAlignment="Top"
-                       RenderTransformOrigin="0.5,0.5"
-                       HorizontalAlignment="Left">
-                    <Label.Effect>
-                        <DropShadowEffect RenderingBias="Performance" ShadowDepth="5" BlurRadius="5" Color="#FFACACAC"/>
-                    </Label.Effect>
-                </Label>
+                <Image Name="imgMainCanvas"/>
             </Canvas>
             <StackPanel Grid.Row="0" Grid.Column="2"> <!-- Third cell -->
                 <Label Content="Hello"
