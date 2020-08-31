@@ -17,8 +17,8 @@ namespace TexturePacker.Net
             return Path.Combine(Environment.CurrentDirectory, "res", folderImages[Math.Max(scale, 1) - 1]);
         }
 
-        public ItemGroup(string rootFolder, string currentFolder)
-            : base(GetFolderThumbnail(), true)
+        public ItemGroup(string rootFolder, string currentFolder, string relativePath)
+            : base(GetFolderThumbnail(), relativePath ?? string.Empty, true)
         {
             Items = new ObservableCollection<Item>();
             InitializeItemGroup(rootFolder, currentFolder);
@@ -26,9 +26,9 @@ namespace TexturePacker.Net
 
         private void InitializeItemGroup(string rootFolder, string currentFolder)
         {
+            string directorySeparotor = RuntimeInformation.IsOSPlatform(OSPlatform.Windows) ? "\\" : "/";
             if (rootFolder == currentFolder)
             {
-                string directorySeparotor = RuntimeInformation.IsOSPlatform(OSPlatform.Windows) ? "\\" : "/";
                 folderName = rootFolder.Substring(rootFolder.LastIndexOf(directorySeparotor) + 1);
             }
             else
@@ -43,11 +43,11 @@ namespace TexturePacker.Net
             {
                 foreach (var fileName in files)
                 {
-                    Items.Add(new Item(fileName));
+                    Items.Add(new Item(fileName, RelativePath));
                 }
                 foreach (var dir in directories)
                 {
-                    var itemGroup = new ItemGroup(currentFolder, dir);
+                    var itemGroup = new ItemGroup(currentFolder, dir, Path.Combine(RelativePath, Path.GetFileName(dir)));
                     if (itemGroup.ContainsItems())
                     {
                         Items.Add(itemGroup);
@@ -58,7 +58,7 @@ namespace TexturePacker.Net
             {
                 foreach (var dir in directories)
                 {
-                    var itemGroup = new ItemGroup(rootFolder, dir);
+                    var itemGroup = new ItemGroup(rootFolder, dir, Path.Combine(RelativePath, Path.GetFileName(dir)));
                     if (itemGroup.ContainsItems())
                     {
                         Items.Add(itemGroup);
@@ -74,7 +74,10 @@ namespace TexturePacker.Net
                 {
                     foreach (ItemGroup itemGroup in Items)
                     {
-                        itemGroup.folderName = itemGroup.folderName.Substring(this.folderName.Length + 1);
+                        if (itemGroup.folderName.StartsWith(folderName + directorySeparotor))
+                        {
+                            itemGroup.folderName = itemGroup.folderName.Substring(this.folderName.Length + 1);
+                        }
                     }
                 }
             }

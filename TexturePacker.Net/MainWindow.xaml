@@ -18,8 +18,9 @@
         </Grid.RowDefinitions>
         <Menu Grid.Row="0" Grid.Column="0"
               Background="AliceBlue">
-            <MenuItem Header="Help" >
-                <MenuItem Header="About" Click="MenuItem_Click"></MenuItem>
+            <MenuItem Header="Open" Click="MenuItem_Click"/>
+            <MenuItem Header="Help">
+                <MenuItem Header="About"></MenuItem>
             </MenuItem>
         </Menu>
         <Grid Grid.Row="1" Grid.Column="0"> <!-- 3 maim columns -->
@@ -58,7 +59,9 @@
                             <StackPanel Orientation="Horizontal"
                                         ToolTip="{Binding Name}"
                                         ToolTipService.InitialShowDelay="0">
-                                <Image Source="{Binding Thumbnail}" MaxWidth="20" MaxHeight="15"/>
+                                <StackPanel Width="20" Height="15">
+                                    <Image Source="{Binding Thumbnail}" MaxWidth="20" MaxHeight="15"/>
+                                </StackPanel>
                                 <TextBlock Text="{Binding Name}" Margin="5,0,0,0"/>
                             </StackPanel>
                         </DataTemplate>
@@ -104,8 +107,8 @@
             <CheckBox Content="Auto fit" Margin="20,0,20,0"/>
             <Separator/>
             <CheckBox Content="Show outlines" Margin="20,0,20,0"/>
-            <TextBlock Text="hello" />
-            <StatusBarItem Content="Zoom" />
+            <Separator/>
+            <StatusBarItem Content="Zoom" Name="LoggerText"/>
         </StatusBar>
     </Grid>
 </Window>

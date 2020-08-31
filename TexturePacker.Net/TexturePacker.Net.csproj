@@ -8,6 +8,7 @@
   </PropertyGroup>
   <ItemGroup>
     <PackageReference Include="SixLabors.ImageSharp" Version="1.0.1" />
+    <PackageReference Include="WriteableBitmapEx" Version="1.6.7" />
   </ItemGroup>
   <ItemGroup>
     <None Update="res\folder128.png">

@@ -1,9 +1,12 @@
-﻿using Microsoft.Win32;
+﻿using Microsoft.VisualBasic;
+using Microsoft.Win32;
+using System;
 using System.Collections.Generic;
 using System.ComponentModel.DataAnnotations;
 using System.IO;
 using System.Threading.Tasks;
 using System.Windows;
+using System.Windows.Controls;
 using System.Windows.Documents;
 using static System.Windows.SystemParameters;
 
@@ -53,8 +56,32 @@ namespace TexturePacker.Net
             if (open.ShowDialog()?.Equals(true)??false)
             {
                 var directory = Path.GetDirectoryName(open.FileName);
-                ItemGroup itemGroup = new ItemGroup(directory, directory);
-                trvImages.ItemsSource = new List<ItemGroup>() { itemGroup };
+                Task.Run(() =>
+                {
+                    var start = DateTime.UtcNow;
+                    var duration = DateTime.UtcNow - start;
+                    ItemGroup itemGroup = new ItemGroup(directory, directory, Path.GetFileName(directory));
+                    Dispatcher.Invoke(() =>
+                    {
+                        LoggerText.Content = $"Find {duration.TotalSeconds:0.###}s";
+                        trvImages.ItemsSource = new List<ItemGroup>() { itemGroup };
+                    });
+
+                    Task.Run(() =>
+                    {
+                        var start = DateTime.UtcNow;
+                        foreach (Item item in itemGroup.GetAllItems(true))
+                        {
+                            item.LoadImage();
+                        }
+                        Dispatcher.Invoke(() =>
+                        {
+                            var binding = trvImages.GetBindingExpression(ItemsControl.ItemsSourceProperty);
+                            binding.UpdateSource();
+                            LoggerText.Content += $" | Load {(DateTime.UtcNow - start).TotalSeconds:0.###}s";
+                        });
+                    });
+                });
             }
         }
 
