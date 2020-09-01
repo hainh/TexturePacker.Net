@@ -4,18 +4,16 @@ using System.Text;
 
 namespace TexturePacker.Net.Packager
 {
-    public interface ISpriteRect
+    public class Size
     {
         public int Width { get; }
 
         public int Height { get; }
 
-        public bool Rotated { get; set; }
-
-        public int X { get; set; }
-
-        public int Y { get; set; }
-
-        public int Sheet { get; set; }
+        public Size(int width, int height)
+        {
+            Width = width;
+            Height = height;
+        }
     }
 }

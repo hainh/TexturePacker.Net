@@ -4,8 +4,8 @@ using System.Text;
 
 namespace TexturePacker.Net.Packager
 {
-    public interface IPackager
+    public class SpriteRect
     {
-        int Pack(IEnumerable<SpriteRect> rects, int width, int height);
+        public int Sheet { get; set; }
     }
 }

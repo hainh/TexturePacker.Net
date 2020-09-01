@@ -10,7 +10,7 @@ namespace TexturePacker.Net
     /// <summary>
     /// An item's data in TreeView
     /// </summary>
-    public class Item : ISpriteRect
+    public class Item : SpriteRect
     {
         private static readonly Dictionary<string, BitmapImage> CachedFolderThumbnail
             = new Dictionary<string, BitmapImage>(5);
