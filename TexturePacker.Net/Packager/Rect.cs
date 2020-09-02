@@ -6,9 +6,13 @@ namespace TexturePacker.Net.Packager
 {
     public class Rect : Size
     {
-        public bool Rotated { get; set; }
         public int X { get; set; }
+
         public int Y { get; set; }
+
+        public int SheetIndex { get; set; }
+
+        public object Item { get; set; }
 
         public Rect(int width, int height) : base(width, height)
         {

@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Text;
 
 namespace TexturePacker.Net.Packager
@@ -11,14 +12,16 @@ namespace TexturePacker.Net.Packager
 
 		private bool binAllowFlip;
 
-        private List<Rect> usedRectangles;
-		private List<Rect> freeRectangles;
+        private readonly List<Rect> usedRectangles;
+		private readonly List<Rect> freeRectangles;
 
 		public MaxRectsBinPack()
-        {
-        }
+		{
+            usedRectangles = new List<Rect>(1000);
+			freeRectangles = new List<Rect>(20000);
+		}
 
-		public MaxRectsBinPack(int width, int height, bool allowFlip = true)
+		public MaxRectsBinPack(int width, int height, bool allowFlip = true) : this()
 		{
 			Init(width, height, allowFlip);
         }
@@ -29,78 +32,28 @@ namespace TexturePacker.Net.Packager
 			binWidth = width;
 			binHeight = height;
 
-            Rect n = new Rect(width, height)
-            {
-                X = 0,
-                Y = 0
-            };
+            usedRectangles.Clear();
+            freeRectangles.Clear();
 
-            usedRectangles = new List<Rect>();
-            freeRectangles = new List<Rect> { n };
+            Rect initialRect = new Rect(width, height);
+			freeRectangles.Add(initialRect);
         }
-
-		/// Inserts the given list of rectangles in an offline/batch mode, possibly rotated.
-		/// @param rects The list of rectangles to insert. This vector will be destroyed in the process.
-		/// @param dst [out] This list will contain the packed rectangles. The indices will not correspond to that of rects.
-		/// @param method The rectangle placement rule to use when packing.
-		public void Insert(List<Size> rects, List<Rect> dst, FreeRectChoiceHeuristic method)
-		{
-			dst.Clear();
-
-			while (rects.Count > 0)
-			{
-				int bestScore1 = int.MaxValue;
-				int bestScore2 = int.MaxValue;
-				int bestRectIndex = -1;
-				Rect bestNode = null;
-
-				for (int i = 0; i < rects.Count; ++i)
-				{
-                    Rect newNode = ScoreRect(rects[i].Width, rects[i].Height, method, out int score1, out int score2);
-
-                    if (score1 < bestScore1 || (score1 == bestScore1 && score2 < bestScore2))
-					{
-						bestScore1 = score1;
-						bestScore2 = score2;
-						bestNode = newNode;
-						bestRectIndex = i;
-					}
-				}
-
-				if (bestRectIndex == -1)
-					return;
-
-				PlaceRect(bestNode);
-				dst.Add(bestNode);
-				rects.RemoveAt(bestRectIndex);
-			}
-		}
 
 		/// Inserts a single rectangle into the bin, possibly rotated.
 		public Rect Insert(int width, int height, FreeRectChoiceHeuristic method)
 		{
-			Rect newNode = null;
-            // Unused in this function. We don't need to know the score after finding the position.
-            switch (method)
-            {
-                case FreeRectChoiceHeuristic.RectBestShortSideFit:
-                    newNode = FindPositionForNewNodeBestShortSideFit(width, height, out _, out _);
-                    break;
-                case FreeRectChoiceHeuristic.RectBottomLeftRule:
-                    newNode = FindPositionForNewNodeBottomLeft(width, height, out _, out _);
-                    break;
-                case FreeRectChoiceHeuristic.RectContactPointRule:
-                    newNode = FindPositionForNewNodeContactPoint(width, height, out _);
-                    break;
-                case FreeRectChoiceHeuristic.RectBestLongSideFit:
-                    newNode = FindPositionForNewNodeBestLongSideFit(width, height, out _, out _);
-                    break;
-                case FreeRectChoiceHeuristic.RectBestAreaFit:
-                    newNode = FindPositionForNewNodeBestAreaFit(width, height, out _, out _);
-                    break;
-            }
+			// Unused in this function. We don't need to know the score after finding the position.
+			Rect newNode = method switch
+			{
+				FreeRectChoiceHeuristic.RectBestShortSideFit => FindPositionForNewNodeBestShortSideFit(width, height, out _, out _),
+				FreeRectChoiceHeuristic.RectBottomLeftRule => FindPositionForNewNodeBottomLeft(width, height, out _, out _),
+				FreeRectChoiceHeuristic.RectContactPointRule => FindPositionForNewNodeContactPoint(width, height, out _),
+				FreeRectChoiceHeuristic.RectBestLongSideFit => FindPositionForNewNodeBestLongSideFit(width, height, out _, out _),
+				FreeRectChoiceHeuristic.RectBestAreaFit => FindPositionForNewNodeBestAreaFit(width, height, out _, out _),
+				_ => throw new NotImplementedException()
+			};
 
-            if (newNode.Height == 0)
+			if (newNode.Height == 0)
 				return newNode;
 
 			int numRectanglesToProcess = freeRectangles.Count;
@@ -120,51 +73,48 @@ namespace TexturePacker.Net.Packager
 			return newNode;
 		}
 
-		/// Computes the ratio of used surface area to the total bin area.
-		public float Occupancy()
-        {
-			ulong usedSurfaceArea = 0;
-			for (int i = 0; i < usedRectangles.Count; ++i)
-				usedSurfaceArea += (ulong)(usedRectangles[i].Width * usedRectangles[i].Height);
-
-			return usedSurfaceArea / (float)(binWidth * binHeight);
-		}
-
 		/// <summary>
-		/// Computes the placement score for placing the given rectangle with the given method.
+		/// Inserts the given list of rectangles in an offline/batch mode, possibly rotated.
 		/// </summary>
-		/// <param name="score1">[out] The primary placement score will be outputted here.</param>
-		/// <param name="score2">[out] The secondary placement score will be outputted here. This isu sed to break ties.</param>
-		/// <returns>This struct identifies where the rectangle would be placed if it were placed.</returns>
-		private Rect ScoreRect(int width, int height, FreeRectChoiceHeuristic method, out int score1, out int score2)
-        {
-			Rect newNode = null;
-			score1 = int.MaxValue;
-			score2 = int.MaxValue;
-			switch (method)
+		/// <param name="rects">The list of rectangles to insert. This vector will be destroyed in the process.</param>
+		/// <param name="method">The rectangle placement rule to use when packing.</param>
+		/// <returns>A List contains the packed rectangles. The indices will not correspond to that of rects.</returns>
+		public List<Rect> Insert(List<Rect> rects, FreeRectChoiceHeuristic method)
+		{
+			int rectCount = rects.Count;
+			List<Rect> result = new List<Rect>(rectCount);
+
+			while (rectCount > 0)
 			{
-				case FreeRectChoiceHeuristic.RectBestShortSideFit:
-					newNode = FindPositionForNewNodeBestShortSideFit(width, height, out score1, out score2);
-					break;
-				case FreeRectChoiceHeuristic.RectBottomLeftRule:
-					newNode = FindPositionForNewNodeBottomLeft(width, height, out score1, out score2);
-					break;
-				case FreeRectChoiceHeuristic.RectContactPointRule:
-					newNode = FindPositionForNewNodeContactPoint(width, height, out score1);
-					score1 = -score1; // Reverse since we are minimizing, but for contact point score bigger is better.
-					break;
-				case FreeRectChoiceHeuristic.RectBestLongSideFit: newNode = FindPositionForNewNodeBestLongSideFit(width, height, out score2, out score1); break;
-				case FreeRectChoiceHeuristic.RectBestAreaFit: newNode = FindPositionForNewNodeBestAreaFit(width, height, out score1, out score2); break;
+				int bestScore1 = int.MaxValue;
+				int bestScore2 = int.MaxValue;
+				int bestRectIndex = -1;
+				Rect bestNode = null;
+
+				for (int i = 0; i < rectCount; ++i)
+				{
+                    Rect newNode = ScoreRect(rects[i].Width, rects[i].Height, method, out int score1, out int score2);
+
+                    if (score1 < bestScore1 || (score1 == bestScore1 && score2 < bestScore2))
+					{
+						bestScore1 = score1;
+						bestScore2 = score2;
+						bestNode = newNode;
+						bestRectIndex = i;
+					}
+				}
+
+				if (bestRectIndex == -1)
+					return result;
+
+				bestNode.Item = rects[bestRectIndex].Item;
+				PlaceRect(bestNode);
+				result.Add(bestNode);
+				rects.RemoveAt(bestRectIndex);
+				rectCount--;
 			}
 
-			// Cannot fit the current rectangle.
-			if (newNode.Height == 0)
-			{
-				score1 = int.MaxValue;
-				score2 = int.MaxValue;
-			}
-
-			return newNode;
+			return result;
 		}
 
 		/// Places the given rectangle into the bin.
@@ -186,34 +136,50 @@ namespace TexturePacker.Net.Packager
 			usedRectangles.Add(node);
 		}
 
-		/// Returns 0 if the two intervals i1 and i2 are disjoint, or the length of their overlap otherwise.
-		static int CommonIntervalLength(int i1start, int i1end, int i2start, int i2end)
+		/// <summary>
+		/// Computes the placement score for placing the given rectangle with the given method.
+		/// </summary>
+		/// <param name="score1">[out] The primary placement score will be outputted here.</param>
+		/// <param name="score2">[out] The secondary placement score will be outputted here. This isu sed to break ties.</param>
+		/// <returns>This struct identifies where the rectangle would be placed if it were placed.</returns>
+		private Rect ScoreRect(int width, int height, FreeRectChoiceHeuristic method, out int score1, out int score2)
 		{
-			if (i1end < i2start || i2end < i1start)
-				return 0;
-			return Math.Min(i1end, i2end) - Math.Max(i1start, i2start);
-		}
-
-		/// Computes the placement score for the -CP variant.
-		private int ContactPointScoreNode(int x, int y, int width, int height)
-		{
-			int score = 0;
-
-			if (x == 0 || x + width == binWidth)
-				score += height;
-			if (y == 0 || y + height == binHeight)
-				score += width;
-
-			for (int i = 0; i < usedRectangles.Count; ++i)
+			score1 = int.MaxValue;
+			score2 = int.MaxValue;
+			Rect newNode = method switch
 			{
-				if (usedRectangles[i].X == x + width || usedRectangles[i].X + usedRectangles[i].Width == x)
-					score += CommonIntervalLength(usedRectangles[i].Y, usedRectangles[i].Y + usedRectangles[i].Height, y, y + height);
-				if (usedRectangles[i].Y == y + height || usedRectangles[i].Y + usedRectangles[i].Height == y)
-					score += CommonIntervalLength(usedRectangles[i].X, usedRectangles[i].X + usedRectangles[i].Width, x, x + width);
+				FreeRectChoiceHeuristic.RectBestShortSideFit => FindPositionForNewNodeBestShortSideFit(width, height, out score1, out score2),
+				FreeRectChoiceHeuristic.RectBottomLeftRule => FindPositionForNewNodeBottomLeft(width, height, out score1, out score2),
+				FreeRectChoiceHeuristic.RectContactPointRule => FindPositionForNewNodeContactPoint(width, height, out score1),
+				FreeRectChoiceHeuristic.RectBestLongSideFit => FindPositionForNewNodeBestLongSideFit(width, height, out score2, out score1),
+				FreeRectChoiceHeuristic.RectBestAreaFit => FindPositionForNewNodeBestAreaFit(width, height, out score1, out score2),
+				_ => throw new NotImplementedException(),
+			};
+			if (method == FreeRectChoiceHeuristic.RectContactPointRule)
+			{
+				score1 = -score1; // Reverse since we are minimizing, but for contact point score bigger is better.
 			}
-			return score;
+
+			// Cannot fit the current rectangle.
+			if (newNode.Height == 0)
+			{
+				score1 = int.MaxValue;
+				score2 = int.MaxValue;
+			}
+
+			return newNode ?? new Rect(0, 0);
 		}
 
+		/// Computes the ratio of used surface area to the total bin area.
+		public float Occupancy()
+        {
+			ulong usedSurfaceArea = 0;
+			for (int i = 0; i < usedRectangles.Count; ++i)
+				usedSurfaceArea += (ulong)(usedRectangles[i].Width * usedRectangles[i].Height);
+
+			return (float)usedSurfaceArea / (binWidth * binHeight);
+		}
+		
 		private Rect FindPositionForNewNodeBottomLeft(int width, int height, out int bestY, out int bestX)
 		{
 			Rect bestNode = null;
@@ -248,18 +214,18 @@ namespace TexturePacker.Net.Packager
 							X = freeRectangles[i].X,
 							Y = freeRectangles[i].Y
 						};
+						bestNode.Rotated = true;
 						bestY = topSideY;
 						bestX = freeRectangles[i].X;
 					}
 				}
 			}
-			return bestNode;
+			return bestNode ?? new Rect(0, 0);
 		}
 
 		private Rect FindPositionForNewNodeBestShortSideFit(int width, int height, out int bestShortSideFit, out int bestLongSideFit)
 		{
-			Rect bestNode = new Rect(0, 0);
-			//memset(&bestNode, 0, sizeof(Rect));
+			Rect bestNode = null;
 
 			bestShortSideFit = int.MaxValue; //std::numeric_limits<int>::max();
 			bestLongSideFit = int.MaxValue; // std::numeric_limits<int>::max();
@@ -300,14 +266,16 @@ namespace TexturePacker.Net.Packager
 							X = freeRectangles[i].X,
 							Y = freeRectangles[i].Y
 						};
+						bestNode.Rotated = true;
 						bestShortSideFit = flippedShortSideFit;
 						bestLongSideFit = flippedLongSideFit;
 					}
 				}
 			}
-			return bestNode;
+			return bestNode ?? new Rect(0, 0);
 		}
-
+///
+		/// Returns 0 if the two intervals i1 and i2 are disjoint, or the length of their overlap otherwise.
 		private Rect FindPositionForNewNodeBestLongSideFit(int width, int height, out int bestShortSideFit, out int bestLongSideFit)
         {
 			Rect bestNode = null;
@@ -351,6 +319,7 @@ namespace TexturePacker.Net.Packager
 							X = freeRectangles[i].X,
 							Y = freeRectangles[i].Y
 						};
+						bestNode.Rotated = true;
 						bestShortSideFit = shortSideFit;
 						bestLongSideFit = longSideFit;
 					}
@@ -402,6 +371,7 @@ namespace TexturePacker.Net.Packager
 							X = freeRectangles[i].X,
 							Y = freeRectangles[i].Y
 						};
+						bestNode.Rotated = true;
 						bestShortSideFit = shortSideFit;
 						bestAreaFit = areaFit;
 					}
@@ -410,10 +380,36 @@ namespace TexturePacker.Net.Packager
 			return bestNode ?? new Rect(0, 0);
 		}
 
+		static int CommonIntervalLength(int i1start, int i1end, int i2start, int i2end)
+		{
+			if (i1end < i2start || i2end < i1start)
+				return 0;
+			return Math.Min(i1end, i2end) - Math.Max(i1start, i2start);
+		}
+
+		/// Computes the placement score for the -CP variant.
+		private int ContactPointScoreNode(int x, int y, int width, int height)
+		{
+			int score = 0;
+
+			if (x == 0 || x + width == binWidth)
+				score += height;
+			if (y == 0 || y + height == binHeight)
+				score += width;
+
+			for (int i = 0; i < usedRectangles.Count; ++i)
+			{
+				if (usedRectangles[i].X == x + width || usedRectangles[i].X + usedRectangles[i].Width == x)
+					score += CommonIntervalLength(usedRectangles[i].Y, usedRectangles[i].Y + usedRectangles[i].Height, y, y + height);
+				if (usedRectangles[i].Y == y + height || usedRectangles[i].Y + usedRectangles[i].Height == y)
+					score += CommonIntervalLength(usedRectangles[i].X, usedRectangles[i].X + usedRectangles[i].Width, x, x + width);
+			}
+			return score;
+		}
+
 		private Rect FindPositionForNewNodeContactPoint(int width, int height, out int bestContactScore)
         {
 			Rect bestNode = null;
-
 			bestContactScore = -1;
 
 			for (int i = 0; i < freeRectangles.Count; ++i)
@@ -442,11 +438,13 @@ namespace TexturePacker.Net.Packager
 							X = freeRectangles[i].X,
 							Y = freeRectangles[i].Y
 						};
+						bestNode.Rotated = true;
 						bestContactScore = score;
 					}
 				}
 			}
-			return bestNode;
+
+			return bestNode ?? new Rect(0, 0);
 		}
 
 		/// <summary>
@@ -466,8 +464,8 @@ namespace TexturePacker.Net.Packager
 				{
 					Rect newNode = new Rect(freeNode.Width, usedNode.Y - freeNode.Y)
 					{
-						X = usedNode.X,
-						Y = usedNode.Y
+						X = freeNode.X,
+						Y = freeNode.Y
 					};
 					freeRectangles.Add(newNode);
 				}
@@ -561,11 +559,13 @@ namespace TexturePacker.Net.Packager
 		/// Specifies the different heuristic rules that can be used when deciding where to place a new rectangle.
 		public enum FreeRectChoiceHeuristic
 		{
-			RectBestShortSideFit, ///< -BSSF: Positions the rectangle against the short side of a free rectangle into which it fits the best.
+			Start = 0,
+			RectBestShortSideFit = Start, ///< -BSSF: Positions the rectangle against the short side of a free rectangle into which it fits the best.
 			RectBestLongSideFit, ///< -BLSF: Positions the rectangle against the long side of a free rectangle into which it fits the best.
 			RectBestAreaFit, ///< -BAF: Positions the rectangle into the smallest free rect into which it fits.
 			RectBottomLeftRule, ///< -BL: Does the Tetris placement.
-			RectContactPointRule ///< -CP: Choosest the placement where the rectangle touches other rects as much as possible.
-		};
+			RectContactPointRule, ///< -CP: Choosest the placement where the rectangle touches other rects as much as possible.
+            End
+        };
 	}
 }

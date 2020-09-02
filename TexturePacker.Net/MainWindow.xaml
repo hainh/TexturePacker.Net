@@ -32,7 +32,8 @@
             <Grid.RowDefinitions>
                 <RowDefinition Height="*"/>
             </Grid.RowDefinitions>
-            <Grid Grid.Row="0" Grid.Column="0"> <!-- First cell -->
+            <Grid Grid.Row="0" Grid.Column="0">
+                <!-- First cell -->
                 <Grid.ColumnDefinitions>
                     <ColumnDefinition Width="*" />
                 </Grid.ColumnDefinitions>
@@ -59,8 +60,8 @@
                             <StackPanel Orientation="Horizontal"
                                         ToolTip="{Binding Name}"
                                         ToolTipService.InitialShowDelay="0">
-                                <StackPanel Width="20" Height="15">
-                                    <Image Source="{Binding Thumbnail}" MaxWidth="20" MaxHeight="15"/>
+                                <StackPanel Width="20" Height="15" Orientation="Vertical">
+                                    <Image Source="{Binding Thumbnail}" MaxWidth="20" MaxHeight="15" VerticalAlignment="Center"/>
                                 </StackPanel>
                                 <TextBlock Text="{Binding Name}" Margin="5,0,0,0"/>
                             </StackPanel>
@@ -72,10 +73,12 @@
                     </TreeView.Resources>
                 </TreeView>
             </Grid>
-            <Canvas Grid.Row="0" Grid.Column="1"> <!-- Second cell -->
-                <Image Name="imgMainCanvas"/>
+            <Canvas Grid.Row="0" Grid.Column="1">
+                <!-- Second cell -->
+                <Image Name="imgMainCanvas" Width="500" Height="500" Stretch="None"/>
             </Canvas>
-            <StackPanel Grid.Row="0" Grid.Column="2"> <!-- Third cell -->
+            <StackPanel Grid.Row="0" Grid.Column="2">
+                <!-- Third cell -->
                 <Label Content="Hello"
                        Grid.Column="1"
                        Grid.Row="0"
@@ -108,7 +111,8 @@
             <Separator/>
             <CheckBox Content="Show outlines" Margin="20,0,20,0"/>
             <Separator/>
-            <StatusBarItem Content="Zoom" Name="LoggerText"/>
+            <StatusBarItem Content="Status string" Name="LoggerText"/>
+            <StatusBarItem Name="LoggerResult" HorizontalAlignment="Right"/>
         </StatusBar>
     </Grid>
 </Window>
