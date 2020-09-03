@@ -35,11 +35,9 @@ namespace TexturePacker.Net
             {
                 folderName = currentFolder.Substring(rootFolder.Length + 1);
             }
-            string[] files = Directory.GetFiles(currentFolder, "*.png")
-                .Concat(Directory.GetFiles(currentFolder, "*.jpg"))
-                .ToArray();
+            IEnumerable<string> files = Directory.GetFiles(currentFolder).Where(IsImageFile);
             string[] directories = Directory.GetDirectories(currentFolder);
-            if (files.Length > 0)
+            if (files.Count() > 0)
             {
                 foreach (var fileName in files)
                 {
@@ -91,6 +89,13 @@ namespace TexturePacker.Net
             }
 
             return false;
+        }
+
+        private static readonly string[] exts = new string[] { ".png", ".jpeg", "jpg" };
+
+        private static bool IsImageFile(string filename)
+        {
+            return exts.Any(ext => filename.EndsWith(ext));
         }
 
         public IEnumerable<Item> GetAllItems(bool includeChildGroup)

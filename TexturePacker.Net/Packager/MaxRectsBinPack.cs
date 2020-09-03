@@ -227,8 +227,8 @@ namespace TexturePacker.Net.Packager
 		{
 			Rect bestNode = null;
 
-			bestShortSideFit = int.MaxValue; //std::numeric_limits<int>::max();
-			bestLongSideFit = int.MaxValue; // std::numeric_limits<int>::max();
+			bestShortSideFit = int.MaxValue;
+			bestLongSideFit = int.MaxValue;
 
 			for (int i = 0; i < freeRectangles.Count; ++i)
 			{
@@ -274,7 +274,7 @@ namespace TexturePacker.Net.Packager
 			}
 			return bestNode ?? new Rect(0, 0);
 		}
-///
+
 		/// Returns 0 if the two intervals i1 and i2 are disjoint, or the length of their overlap otherwise.
 		private Rect FindPositionForNewNodeBestLongSideFit(int width, int height, out int bestShortSideFit, out int bestLongSideFit)
         {
@@ -447,8 +447,6 @@ namespace TexturePacker.Net.Packager
 			return bestNode ?? new Rect(0, 0);
 		}
 
-		/// <summary>
-		/// </summary>
 		/// @return True if the free node was split.
 		private bool SplitFreeNode(Rect freeNode, Rect usedNode)
 		{
@@ -556,7 +554,9 @@ namespace TexturePacker.Net.Packager
 			}
 		}
 
+		/// <summary>
 		/// Specifies the different heuristic rules that can be used when deciding where to place a new rectangle.
+		/// </summary>
 		public enum FreeRectChoiceHeuristic
 		{
 			Start = 0,

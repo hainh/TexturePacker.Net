@@ -5,10 +5,12 @@ using System.Collections.Generic;
 using System.ComponentModel.DataAnnotations;
 using System.IO;
 using System.Linq;
+using System.Reflection;
 using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Documents;
+using System.Windows.Media;
 using System.Windows.Media.Imaging;
 using static System.Windows.SystemParameters;
 
@@ -29,6 +31,7 @@ namespace TexturePacker.Net
             {
                 await Task.Delay(1);
                 LoadDeviceScale();
+                //GenerateTestImgs();
             });
         }
 
@@ -85,10 +88,20 @@ namespace TexturePacker.Net
                         }
                         LoggerText.Content += $" | Load {(DateTime.UtcNow - start).TotalSeconds:0.###}s";
                     });
+                    DateTime packTime = DateTime.UtcNow;
                     List<Packager.Rect> rects = allItems.Select(item => item.SpriteRect).ToList();
                     List<Packager.Rect> result = Packager.Packager.Pack(rects, out int width, out int height);
+                    Dispatcher.Invoke(() =>
+                    {
+                        foreach (Item item in allItems)
+                        {
+                            item.NotifyPropertyChanged(nameof(Item.Thumbnail));
+                        }
+                        LoggerText.Content += $" | Pack {(DateTime.UtcNow - packTime).TotalSeconds:0.###}s";
+                    });
                     if (result != null)
                     {
+                        DateTime renderTime = DateTime.UtcNow;
                         WriteableBitmap writeableBitmap = BitmapFactory.New(width, height);
                         foreach (var rect in result)
                         {
@@ -108,24 +121,14 @@ namespace TexturePacker.Net
                                     new Rect(0, 0, rect.Width, rect.Height));
                             }
                         }
-                        BitmapImage bmImage = new BitmapImage();
-                        using (MemoryStream stream = new MemoryStream())
-                        {
-                            PngBitmapEncoder encoder = new PngBitmapEncoder();
-                            encoder.Frames.Add(BitmapFrame.Create(writeableBitmap));
-                            encoder.Save(stream);
-                            bmImage.BeginInit();
-                            bmImage.CacheOption = BitmapCacheOption.OnLoad;
-                            bmImage.StreamSource = stream;
-                            bmImage.EndInit();
-                            bmImage.Freeze();
-                        }
+                        writeableBitmap.Freeze();
                         imgMainCanvas.Dispatcher.Invoke(() =>
                         {
-                            imgMainCanvas.Source = bmImage;
-                            //imgMainCanvas.Width = bmImage.Width;
-                            //imgMainCanvas.Height = bmImage.Height;
-                            LoggerResult.Content = bmImage.PixelWidth + "x" + bmImage.PixelHeight;
+                            LoggerText.Content += $" | Render {(DateTime.UtcNow - renderTime).TotalSeconds:0.###}s";
+                            imgMainCanvas.Source = writeableBitmap;
+                            imgMainCanvas.Width = writeableBitmap.Width;
+                            imgMainCanvas.Height = writeableBitmap.Height;
+                            LoggerResult.Content = writeableBitmap.PixelWidth + "x" + writeableBitmap.PixelHeight;
                         });
                     }
                 });
@@ -136,5 +139,42 @@ namespace TexturePacker.Net
         {
             e.Handled = true;
         }
+
+        private void GenerateTestImgs()
+        {
+            const int length = 30;
+            var random = new Random((int)(new DateTime(2020, 1, 1) - DateTime.UtcNow).TotalHours);
+            for (int i = 0; i < length; i++)
+            {
+                int width = random.Next(15, 200);
+                int height = random.Next(15, 200);
+                WriteableBitmap wb = BitmapFactory.New(width, height);
+                wb.FillRectangle( 0, 0, width, height, AllColors[i % length]);
+                RenderTargetBitmap renderTargetBitmap = new RenderTargetBitmap(15, 15, 96, 96, PixelFormats.Pbgra32);
+                var textView = new TextBlock
+                {
+                    FontSize = 10,
+                    FontWeight = FontWeights.Normal,
+                    Text = "" + (i + 1)
+                };
+                renderTargetBitmap.Render(textView);
+                WriteableBitmap textBm = new WriteableBitmap(renderTargetBitmap);
+                var rect = new Rect(0, 0, textView.Width, textView.Height);
+                wb.Blit(rect, textBm, rect);
+
+                PngBitmapEncoder encoder = new PngBitmapEncoder();
+                encoder.Frames.Add(BitmapFrame.Create(wb));
+                using var stream = new FileStream($"img_{i + 1:00}.png", FileMode.Create);
+                encoder.Save(stream);
+            }
+        }
+
+        static MainWindow()
+        {
+            Type colorsType = typeof(Colors);
+            PropertyInfo[] colorsTypePropertyInfos = colorsType.GetProperties(BindingFlags.Public | BindingFlags.Static);
+            AllColors =  colorsTypePropertyInfos.Select(propInfo => (Color)propInfo.GetValue(null)).ToArray();
+        }
+        public static Color[] AllColors { get; }
     }
 }

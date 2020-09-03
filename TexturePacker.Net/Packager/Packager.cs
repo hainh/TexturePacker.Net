@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Diagnostics.CodeAnalysis;
 using System.Linq;
 using System.Text;
 using System.Threading;
@@ -13,7 +14,7 @@ namespace TexturePacker.Net.Packager
 
         public static List<Rect> Pack(List<Rect> rects, out int width, out int height)
         {
-            dynamic[] bestResults = new dynamic[(int)MaxRectsBinPack.FreeRectChoiceHeuristic.End];
+            Bin[] bestResults = new Bin[(int)MaxRectsBinPack.FreeRectChoiceHeuristic.End];
             int totalArea = rects.Sum(r => r.Width * r.Height);
             int heuristic = (int)MaxRectsBinPack.FreeRectChoiceHeuristic.Start - 1;
             int maxSizeWidth = rects.Max(r => r.Width);
@@ -45,7 +46,6 @@ namespace TexturePacker.Net.Packager
                 }
                 area = width * height;
                 List<Rect> minRects = feasibleResult;
-                int minArea = area;
                 int minWidth = width;
                 int minHeight = height;
                 // We found an area can fit all rects, now we try to narrow this area
@@ -63,11 +63,11 @@ namespace TexturePacker.Net.Packager
                         feasibleResult = bin.Insert(rectsClone, method);
                         if (rectsClone.Count == 0)
                         {
-                            if (width * height < minArea)
+                            if (width * height < area)
                             {
                                 foundNewMinBin = true;
                                 minRects = feasibleResult;
-                                minArea = width * height;
+                                area = width * height;
                                 minWidth = width;
                                 minHeight = height;
                             }
@@ -95,10 +95,10 @@ namespace TexturePacker.Net.Packager
                                     feasibleResult = bin.Insert(rectsClone, method);
                                     if (rectsClone.Count == 0)
                                     {
-                                        if (width * height < minArea)
+                                        if (width * height < area)
                                         {
                                             minRects = feasibleResult;
-                                            minArea = width * height;
+                                            area = width * height;
                                             minWidth = width;
                                             minHeight = height;
                                         }
@@ -127,12 +127,39 @@ namespace TexturePacker.Net.Packager
                     }
                     width = Math.Min(width + maxIncreasement, maxWidth);
                 }
+
+                bestResults[h] = new Bin()
+                {
+                    width = minWidth,
+                    height = minHeight,
+                    list = minRects
+                };
             });
 
-            var bestResult = bestResults.Min(result => result == null ? int.MaxValue : result.width * result.height);
+            var bestResult = bestResults.Min();
             width = bestResult.width;
             height = bestResult.height;
             return bestResult.list;
+        }
+    }
+
+    struct Bin : IComparable<Bin>
+    {
+        public int width;
+        public int height;
+        public List<Rect> list;
+
+        public int CompareTo([AllowNull] Bin other)
+        {
+            if (list == null)
+            {
+                return int.MinValue;
+            }
+            if (other.list == null)
+            {
+                return int.MaxValue;
+            }
+            return width * height - other.width * other.height;
         }
     }
 }
