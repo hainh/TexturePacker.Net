@@ -111,6 +111,7 @@
             <Separator/>
             <CheckBox Content="Show outlines" Margin="20,0,20,0"/>
             <Separator/>
+            <ProgressBar IsIndeterminate="True" Height="10" Width="50" Name="Progress" Visibility="Hidden"/>
             <StatusBarItem Content="Status string" Name="LoggerText"/>
             <StatusBarItem Name="LoggerResult" HorizontalAlignment="Right"/>
         </StatusBar>

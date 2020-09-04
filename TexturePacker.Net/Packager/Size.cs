@@ -8,9 +8,9 @@ namespace TexturePacker.Net.Packager
     {
         private bool rotated = false;
 
-        public int Width { get; private set; }
+        public int Width;
 
-        public int Height { get; private set; }
+        public int Height;
 
         public bool Rotated
         {

@@ -35,7 +35,7 @@ namespace TexturePacker.Net.Packager
             usedRectangles.Clear();
             freeRectangles.Clear();
 
-            Rect initialRect = new Rect(width, height);
+            Rect initialRect = new Rect(0, 0, width, height);
 			freeRectangles.Add(initialRect);
         }
 
@@ -167,7 +167,7 @@ namespace TexturePacker.Net.Packager
 				score2 = int.MaxValue;
 			}
 
-			return newNode ?? new Rect(0, 0);
+			return newNode ?? Rect.Empty;
 		}
 
 		/// Computes the ratio of used surface area to the total bin area.
@@ -187,40 +187,37 @@ namespace TexturePacker.Net.Packager
 			bestY = int.MaxValue;
 			bestX = int.MaxValue;
 
-			for (int i = 0; i < freeRectangles.Count; ++i)
+			int count = freeRectangles.Count;
+			Rect freeRect;
+			for (int i = 0; i < count; ++i)
 			{
+				freeRect = freeRectangles[i];
 				// Try to place the rectangle in upright (non-flipped) orientation.
-				if (freeRectangles[i].Width >= width && freeRectangles[i].Height >= height)
+				if (freeRect.Width >= width && freeRect.Height >= height)
 				{
-					int topSideY = freeRectangles[i].Y + height;
-					if (topSideY < bestY || (topSideY == bestY && freeRectangles[i].X < bestX))
+					int topSideY = freeRect.Y + height;
+					if (topSideY < bestY || (topSideY == bestY && freeRect.X < bestX))
 					{
-						bestNode = new Rect(width, height)
-						{
-							X = freeRectangles[i].X,
-							Y = freeRectangles[i].Y
-						};
+						bestNode = new Rect(freeRect.X, freeRect.Y, width, height);
 						bestY = topSideY;
-						bestX = freeRectangles[i].X;
+						bestX = freeRect.X;
 					}
 				}
-				if (binAllowFlip && freeRectangles[i].Width >= height && freeRectangles[i].Height >= width)
+				if (binAllowFlip && freeRect.Width >= height && freeRect.Height >= width)
 				{
-					int topSideY = freeRectangles[i].Y + width;
-					if (topSideY < bestY || (topSideY == bestY && freeRectangles[i].X < bestX))
+					int topSideY = freeRect.Y + width;
+					if (topSideY < bestY || (topSideY == bestY && freeRect.X < bestX))
 					{
-						bestNode = new Rect(width, height)
-						{
-							X = freeRectangles[i].X,
-							Y = freeRectangles[i].Y
-						};
-						bestNode.Rotated = true;
-						bestY = topSideY;
-						bestX = freeRectangles[i].X;
+                        bestNode = new Rect(freeRect.X, freeRect.Y, width, height)
+                        {
+                            Rotated = true
+                        };
+                        bestY = topSideY;
+						bestX = freeRect.X;
 					}
 				}
 			}
-			return bestNode ?? new Rect(0, 0);
+			return bestNode ?? Rect.Empty;
 		}
 
 		private Rect FindPositionForNewNodeBestShortSideFit(int width, int height, out int bestShortSideFit, out int bestLongSideFit)
@@ -230,49 +227,46 @@ namespace TexturePacker.Net.Packager
 			bestShortSideFit = int.MaxValue;
 			bestLongSideFit = int.MaxValue;
 
-			for (int i = 0; i < freeRectangles.Count; ++i)
+			int count = freeRectangles.Count;
+			Rect freeRect;
+			for (int i = 0; i < count; ++i)
 			{
+				freeRect = freeRectangles[i];
 				// Try to place the rectangle in upright (non-flipped) orientation.
-				if (freeRectangles[i].Width >= width && freeRectangles[i].Height >= height)
+				if (freeRect.Width >= width && freeRect.Height >= height)
 				{
-					int leftoverHoriz = Math.Abs(freeRectangles[i].Width - width);
-					int leftoverVert = Math.Abs(freeRectangles[i].Height - height);
+					int leftoverHoriz = Math.Abs(freeRect.Width - width);
+					int leftoverVert = Math.Abs(freeRect.Height - height);
 					int shortSideFit = Math.Min(leftoverHoriz, leftoverVert);
 					int longSideFit = Math.Max(leftoverHoriz, leftoverVert);
 
 					if (shortSideFit < bestShortSideFit || (shortSideFit == bestShortSideFit && longSideFit < bestLongSideFit))
 					{
-						bestNode = new Rect(width, height)
-						{
-							X = freeRectangles[i].X,
-							Y = freeRectangles[i].Y
-						};
+						bestNode = new Rect(freeRect.X, freeRect.Y, width, height);
 						bestShortSideFit = shortSideFit;
 						bestLongSideFit = longSideFit;
 					}
 				}
 
-				if (binAllowFlip && freeRectangles[i].Width >= height && freeRectangles[i].Height >= width)
+				if (binAllowFlip && freeRect.Width >= height && freeRect.Height >= width)
 				{
-					int flippedLeftoverHoriz = Math.Abs(freeRectangles[i].Width - height);
-					int flippedLeftoverVert = Math.Abs(freeRectangles[i].Height - width);
+					int flippedLeftoverHoriz = Math.Abs(freeRect.Width - height);
+					int flippedLeftoverVert = Math.Abs(freeRect.Height - width);
 					int flippedShortSideFit = Math.Min(flippedLeftoverHoriz, flippedLeftoverVert);
 					int flippedLongSideFit = Math.Max(flippedLeftoverHoriz, flippedLeftoverVert);
 
 					if (flippedShortSideFit < bestShortSideFit || (flippedShortSideFit == bestShortSideFit && flippedLongSideFit < bestLongSideFit))
 					{
-						bestNode = new Rect(width, height)
-						{
-							X = freeRectangles[i].X,
-							Y = freeRectangles[i].Y
-						};
-						bestNode.Rotated = true;
-						bestShortSideFit = flippedShortSideFit;
+                        bestNode = new Rect(freeRect.X, freeRect.Y, width, height)
+                        {
+                            Rotated = true
+                        };
+                        bestShortSideFit = flippedShortSideFit;
 						bestLongSideFit = flippedLongSideFit;
 					}
 				}
 			}
-			return bestNode ?? new Rect(0, 0);
+			return bestNode ?? Rect.Empty;
 		}
 
 		/// Returns 0 if the two intervals i1 and i2 are disjoint, or the length of their overlap otherwise.
@@ -283,49 +277,46 @@ namespace TexturePacker.Net.Packager
 			bestShortSideFit = int.MaxValue;
 			bestLongSideFit = int.MaxValue;
 
-			for (int i = 0; i < freeRectangles.Count; ++i)
+			int count = freeRectangles.Count;
+			Rect freeRect;
+			for (int i = 0; i < count; ++i)
 			{
+				freeRect = freeRectangles[i];
 				// Try to place the rectangle in upright (non-flipped) orientation.
-				if (freeRectangles[i].Width >= width && freeRectangles[i].Height >= height)
+				if (freeRect.Width >= width && freeRect.Height >= height)
 				{
-					int leftoverHoriz = Math.Abs(freeRectangles[i].Width - width);
-					int leftoverVert = Math.Abs(freeRectangles[i].Height - height);
+					int leftoverHoriz = Math.Abs(freeRect.Width - width);
+					int leftoverVert = Math.Abs(freeRect.Height - height);
 					int shortSideFit = Math.Min(leftoverHoriz, leftoverVert);
 					int longSideFit = Math.Max(leftoverHoriz, leftoverVert);
 
 					if (longSideFit < bestLongSideFit || (longSideFit == bestLongSideFit && shortSideFit < bestShortSideFit))
 					{
-						bestNode = new Rect(width, height)
-						{
-							X = freeRectangles[i].X,
-							Y = freeRectangles[i].Y
-						};
+						bestNode = new Rect(freeRect.X, freeRect.Y, width, height);
 						bestShortSideFit = shortSideFit;
 						bestLongSideFit = longSideFit;
 					}
 				}
 
-				if (binAllowFlip && freeRectangles[i].Width >= height && freeRectangles[i].Height >= width)
+				if (binAllowFlip && freeRect.Width >= height && freeRect.Height >= width)
 				{
-					int leftoverHoriz = Math.Abs(freeRectangles[i].Width - height);
-					int leftoverVert = Math.Abs(freeRectangles[i].Height - width);
+					int leftoverHoriz = Math.Abs(freeRect.Width - height);
+					int leftoverVert = Math.Abs(freeRect.Height - width);
 					int shortSideFit = Math.Min(leftoverHoriz, leftoverVert);
 					int longSideFit = Math.Max(leftoverHoriz, leftoverVert);
 
 					if (longSideFit < bestLongSideFit || (longSideFit == bestLongSideFit && shortSideFit < bestShortSideFit))
 					{
-						bestNode = new Rect(width, height)
-						{
-							X = freeRectangles[i].X,
-							Y = freeRectangles[i].Y
-						};
-						bestNode.Rotated = true;
-						bestShortSideFit = shortSideFit;
+                        bestNode = new Rect(freeRect.X, freeRect.Y, width, height)
+                        {
+                            Rotated = true
+                        };
+                        bestShortSideFit = shortSideFit;
 						bestLongSideFit = longSideFit;
 					}
 				}
 			}
-			return bestNode ?? new Rect(0, 0);
+			return bestNode ?? Rect.Empty;
 		}
 
 		private Rect FindPositionForNewNodeBestAreaFit(int width, int height, out int bestAreaFit, out int bestShortSideFit)
@@ -335,49 +326,46 @@ namespace TexturePacker.Net.Packager
 			bestAreaFit = int.MaxValue;
 			bestShortSideFit = int.MaxValue;
 
-			for (int i = 0; i < freeRectangles.Count; ++i)
+			int count = freeRectangles.Count;
+			Rect freeRect;
+			for (int i = 0; i < count; ++i)
 			{
-				int areaFit = freeRectangles[i].Width * freeRectangles[i].Height - width * height;
+				freeRect = freeRectangles[i];
+				int areaFit = freeRect.Width * freeRect.Height - width * height;
 
 				// Try to place the rectangle in upright (non-flipped) orientation.
-				if (freeRectangles[i].Width >= width && freeRectangles[i].Height >= height)
+				if (freeRect.Width >= width && freeRect.Height >= height)
 				{
-					int leftoverHoriz = Math.Abs(freeRectangles[i].Width - width);
-					int leftoverVert = Math.Abs(freeRectangles[i].Height - height);
+					int leftoverHoriz = Math.Abs(freeRect.Width - width);
+					int leftoverVert = Math.Abs(freeRect.Height - height);
 					int shortSideFit = Math.Min(leftoverHoriz, leftoverVert);
 
 					if (areaFit < bestAreaFit || (areaFit == bestAreaFit && shortSideFit < bestShortSideFit))
 					{
-						bestNode = new Rect(width, height)
-						{
-							X = freeRectangles[i].X,
-							Y = freeRectangles[i].Y
-						};
+						bestNode = new Rect(freeRect.X, freeRect.Y, width, height);
 						bestShortSideFit = shortSideFit;
 						bestAreaFit = areaFit;
 					}
 				}
 
-				if (binAllowFlip && freeRectangles[i].Width >= height && freeRectangles[i].Height >= width)
+				if (binAllowFlip && freeRect.Width >= height && freeRect.Height >= width)
 				{
-					int leftoverHoriz = Math.Abs(freeRectangles[i].Width - height);
-					int leftoverVert = Math.Abs(freeRectangles[i].Height - width);
+					int leftoverHoriz = Math.Abs(freeRect.Width - height);
+					int leftoverVert = Math.Abs(freeRect.Height - width);
 					int shortSideFit = Math.Min(leftoverHoriz, leftoverVert);
 
 					if (areaFit < bestAreaFit || (areaFit == bestAreaFit && shortSideFit < bestShortSideFit))
 					{
-						bestNode = new Rect(width, height)
-						{
-							X = freeRectangles[i].X,
-							Y = freeRectangles[i].Y
-						};
-						bestNode.Rotated = true;
-						bestShortSideFit = shortSideFit;
+                        bestNode = new Rect(freeRect.X, freeRect.Y, width, height)
+                        {
+                            Rotated = true
+                        };
+                        bestShortSideFit = shortSideFit;
 						bestAreaFit = areaFit;
 					}
 				}
 			}
-			return bestNode ?? new Rect(0, 0);
+			return bestNode ?? Rect.Empty;
 		}
 
 		static int CommonIntervalLength(int i1start, int i1end, int i2start, int i2end)
@@ -397,12 +385,25 @@ namespace TexturePacker.Net.Packager
 			if (y == 0 || y + height == binHeight)
 				score += width;
 
-			for (int i = 0; i < usedRectangles.Count; ++i)
+			int count = usedRectangles.Count;
+			Rect usedRect;
+			int urx, ury, urfx, urfy;
+			int farX = x + width;
+			int farY = y + height;
+			bool cond1, cond2;
+			for (int i = 0; i < count; ++i)
 			{
-				if (usedRectangles[i].X == x + width || usedRectangles[i].X + usedRectangles[i].Width == x)
-					score += CommonIntervalLength(usedRectangles[i].Y, usedRectangles[i].Y + usedRectangles[i].Height, y, y + height);
-				if (usedRectangles[i].Y == y + height || usedRectangles[i].Y + usedRectangles[i].Height == y)
-					score += CommonIntervalLength(usedRectangles[i].X, usedRectangles[i].X + usedRectangles[i].Width, x, x + width);
+				usedRect = usedRectangles[i];
+				ury = usedRect.Y;
+				urfx = usedRect.FarX;
+				urfy = usedRect.FarY;
+				urx = usedRect.X;
+				cond1 = urx == farX || urfx == x;
+				cond2 = ury == farY || urfy == y;
+				if (cond1)
+					score += CommonIntervalLength(ury, urfy, y, farY);
+				if (cond2)
+					score += CommonIntervalLength(urx, urfy, x, farX);
 			}
 			return score;
 		}
@@ -412,39 +413,36 @@ namespace TexturePacker.Net.Packager
 			Rect bestNode = null;
 			bestContactScore = -1;
 
-			for (int i = 0; i < freeRectangles.Count; ++i)
+			int count = freeRectangles.Count;
+			Rect freeRect;
+			for (int i = 0; i < count; ++i)
 			{
+				freeRect = freeRectangles[i];
 				// Try to place the rectangle in upright (non-flipped) orientation.
-				if (freeRectangles[i].Width >= width && freeRectangles[i].Height >= height)
+				if (freeRect.Width >= width && freeRect.Height >= height)
 				{
-					int score = ContactPointScoreNode(freeRectangles[i].X, freeRectangles[i].Y, width, height);
+					int score = ContactPointScoreNode(freeRect.X, freeRect.Y, width, height);
 					if (score > bestContactScore)
 					{
-						bestNode = new Rect(width, height)
-						{
-							X = freeRectangles[i].X,
-							Y = freeRectangles[i].Y
-						};
+						bestNode = new Rect(freeRect.X, freeRect.Y, width, height);
 						bestContactScore = score;
 					}
 				}
-				if (binAllowFlip && freeRectangles[i].Width >= height && freeRectangles[i].Height >= width)
+				if (binAllowFlip && freeRect.Width >= height && freeRect.Height >= width)
 				{
-					int score = ContactPointScoreNode(freeRectangles[i].X, freeRectangles[i].Y, height, width);
+					int score = ContactPointScoreNode(freeRect.X, freeRect.Y, height, width);
 					if (score > bestContactScore)
 					{
-						bestNode = new Rect(width, height)
-						{
-							X = freeRectangles[i].X,
-							Y = freeRectangles[i].Y
-						};
-						bestNode.Rotated = true;
-						bestContactScore = score;
+                        bestNode = new Rect(freeRect.X, freeRect.Y, width, height)
+                        {
+                            Rotated = true
+                        };
+                        bestContactScore = score;
 					}
 				}
 			}
 
-			return bestNode ?? new Rect(0, 0);
+			return bestNode ?? Rect.Empty;
 		}
 
 		/// @return True if the free node was split.
@@ -460,22 +458,14 @@ namespace TexturePacker.Net.Packager
 				// New node at the top side of the used node.
 				if (usedNode.Y > freeNode.Y && usedNode.Y < freeNode.Y + freeNode.Height)
 				{
-					Rect newNode = new Rect(freeNode.Width, usedNode.Y - freeNode.Y)
-					{
-						X = freeNode.X,
-						Y = freeNode.Y
-					};
+					Rect newNode = new Rect(freeNode.X, freeNode.Y, freeNode.Width, usedNode.Y - freeNode.Y);
 					freeRectangles.Add(newNode);
 				}
 
 				// New node at the bottom side of the used node.
 				if (usedNode.Y + usedNode.Height < freeNode.Y + freeNode.Height)
 				{
-					Rect newNode = new Rect(freeNode.Width, freeNode.Y + freeNode.Height - (usedNode.Y + usedNode.Height))
-					{
-						X = freeNode.X,
-						Y = usedNode.Y + usedNode.Height
-					};
+					Rect newNode = new Rect(freeNode.X, usedNode.Y + usedNode.Height, freeNode.Width, freeNode.Y + freeNode.Height - (usedNode.Y + usedNode.Height));
 					freeRectangles.Add(newNode);
 				}
 			}
@@ -485,23 +475,14 @@ namespace TexturePacker.Net.Packager
 				// New node at the left side of the used node.
 				if (usedNode.X > freeNode.X && usedNode.X < freeNode.X + freeNode.Width)
 				{
-					Rect newNode = new Rect(usedNode.X - freeNode.X, freeNode.Height)
-					{
-						X = freeNode.X,
-						Y = freeNode.Y
-					};
+					Rect newNode = new Rect(freeNode.X, freeNode.Y, usedNode.X - freeNode.X, freeNode.Height);
 					freeRectangles.Add(newNode);
 				}
 
 				// New node at the right side of the used node.
 				if (usedNode.X + usedNode.Width < freeNode.X + freeNode.Width)
 				{
-					Rect newNode = new Rect(freeNode.X + freeNode.Width - (usedNode.X + usedNode.Width), freeNode.Height)
-					{
-						X = usedNode.X + usedNode.Width,
-						Y = freeNode.Y
-					};
-					newNode.X = usedNode.X + usedNode.Width;
+					Rect newNode = new Rect(usedNode.X + usedNode.Width, freeNode.Y, freeNode.X + freeNode.Width - (usedNode.X + usedNode.Width), freeNode.Height);
 					freeRectangles.Add(newNode);
 				}
 			}
@@ -535,20 +516,26 @@ namespace TexturePacker.Net.Packager
 			*/
 
 			/// Go through each pair and remove any rectangle that is redundant.
-			for (int i = 0; i < freeRectangles.Count; ++i)
+			int count = freeRectangles.Count;
+			Rect iRect, jRect;
+			for (int i = 0; i < count; ++i)
 			{
-				for (int j = i + 1; j < freeRectangles.Count; ++j)
+				for (int j = i + 1; j < count; ++j)
 				{
-					if (freeRectangles[j].Contains(freeRectangles[i]))
+					iRect = freeRectangles[i];
+					jRect = freeRectangles[j];
+					if (jRect.Contains(iRect))
 					{
 						freeRectangles.RemoveAt(i);
 						--i;
+						--count;
 						break;
 					}
-					if (freeRectangles[i].Contains(freeRectangles[j]))
+					if (iRect.Contains(jRect))
 					{
 						freeRectangles.RemoveAt(j);
 						--j;
+						--count;
 					}
 				}
 			}
@@ -559,13 +546,13 @@ namespace TexturePacker.Net.Packager
 		/// </summary>
 		public enum FreeRectChoiceHeuristic
 		{
-			Start = 0,
-			RectBestShortSideFit = Start, ///< -BSSF: Positions the rectangle against the short side of a free rectangle into which it fits the best.
+			Start = -1,
+            RectContactPointRule, ///< -CP: Choosest the placement where the rectangle touches other rects as much as possible.
 			RectBestLongSideFit, ///< -BLSF: Positions the rectangle against the long side of a free rectangle into which it fits the best.
+			RectBestShortSideFit, ///< -BSSF: Positions the rectangle against the short side of a free rectangle into which it fits the best.
 			RectBestAreaFit, ///< -BAF: Positions the rectangle into the smallest free rect into which it fits.
 			RectBottomLeftRule, ///< -BL: Does the Tetris placement.
-			RectContactPointRule, ///< -CP: Choosest the placement where the rectangle touches other rects as much as possible.
-            End
+            End,
         };
 	}
 }

@@ -69,6 +69,7 @@ namespace TexturePacker.Net
                 {
                     LoggerText.Content = $"Find {duration.TotalSeconds:0.###}s";
                     trvImages.ItemsSource = new List<ItemGroup>() { itemGroup };
+                    Progress.Visibility = Visibility.Visible;
                 });
 
                 Task.Run(async () =>
@@ -80,24 +81,26 @@ namespace TexturePacker.Net
                     {
                         item.LoadImage();
                     }
+                    double loadSecs = (DateTime.UtcNow - start).TotalSeconds;
                     Dispatcher.Invoke(() =>
                     {
                         foreach (Item item in allItems)
                         {
                             item.NotifyPropertyChanged(nameof(Item.Thumbnail));
                         }
-                        LoggerText.Content += $" | Load {(DateTime.UtcNow - start).TotalSeconds:0.###}s";
+                        LoggerText.Content += $" | Load {loadSecs:0.###}s";
                     });
                     DateTime packTime = DateTime.UtcNow;
                     List<Packager.Rect> rects = allItems.Select(item => item.SpriteRect).ToList();
                     List<Packager.Rect> result = Packager.Packager.Pack(rects, out int width, out int height);
+                    double packSecs = (DateTime.UtcNow - packTime).TotalSeconds;
                     Dispatcher.Invoke(() =>
                     {
                         foreach (Item item in allItems)
                         {
                             item.NotifyPropertyChanged(nameof(Item.Thumbnail));
                         }
-                        LoggerText.Content += $" | Pack {(DateTime.UtcNow - packTime).TotalSeconds:0.###}s";
+                        LoggerText.Content += $" | Pack {packSecs:0.###}s";
                     });
                     if (result != null)
                     {
@@ -122,13 +125,15 @@ namespace TexturePacker.Net
                             }
                         }
                         writeableBitmap.Freeze();
+                        double renderSecs = (DateTime.UtcNow - renderTime).TotalSeconds;
                         imgMainCanvas.Dispatcher.Invoke(() =>
                         {
-                            LoggerText.Content += $" | Render {(DateTime.UtcNow - renderTime).TotalSeconds:0.###}s";
+                            LoggerText.Content += $" | Render {renderSecs:0.###}s";
                             imgMainCanvas.Source = writeableBitmap;
                             imgMainCanvas.Width = writeableBitmap.Width;
                             imgMainCanvas.Height = writeableBitmap.Height;
-                            LoggerResult.Content = writeableBitmap.PixelWidth + "x" + writeableBitmap.PixelHeight;
+                            LoggerResult.Content = $"{writeableBitmap.PixelWidth}x{writeableBitmap.PixelHeight} {result.Sum(r => r.Width * r.Height) / (float)width / height:P}";
+                            Progress.Visibility = Visibility.Hidden;
                         });
                     }
                 });
@@ -142,25 +147,16 @@ namespace TexturePacker.Net
 
         private void GenerateTestImgs()
         {
-            const int length = 30;
+            const int length = 40;
             var random = new Random((int)(new DateTime(2020, 1, 1) - DateTime.UtcNow).TotalHours);
             for (int i = 0; i < length; i++)
             {
-                int width = random.Next(15, 200);
-                int height = random.Next(15, 200);
+                int width = random.Next(5, 200);
+                int height = random.Next(5, 200);
                 WriteableBitmap wb = BitmapFactory.New(width, height);
-                wb.FillRectangle( 0, 0, width, height, AllColors[i % length]);
-                RenderTargetBitmap renderTargetBitmap = new RenderTargetBitmap(15, 15, 96, 96, PixelFormats.Pbgra32);
-                var textView = new TextBlock
-                {
-                    FontSize = 10,
-                    FontWeight = FontWeights.Normal,
-                    Text = "" + (i + 1)
-                };
-                renderTargetBitmap.Render(textView);
-                WriteableBitmap textBm = new WriteableBitmap(renderTargetBitmap);
-                var rect = new Rect(0, 0, textView.Width, textView.Height);
-                wb.Blit(rect, textBm, rect);
+                wb.FillRectangle(0, 0, width, height, AllColors[i % AllColors.Length]);
+                wb.DrawRectangle(0, 0, width, height, AllColors[(i + 2) % AllColors.Length]);
+                wb.DrawLine(0, 0, width, height, AllColors[(i + 3) % AllColors.Length]);
 
                 PngBitmapEncoder encoder = new PngBitmapEncoder();
                 encoder.Frames.Add(BitmapFrame.Create(wb));
