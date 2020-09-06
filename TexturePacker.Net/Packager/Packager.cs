@@ -16,12 +16,12 @@ namespace TexturePacker.Net.Packager
         public static List<Rect> Pack(List<Rect> rects, out int width, out int height)
         {
             DateTime packStart = DateTime.UtcNow;
-            rects.Sort((a, b) => a.Width - b.Width);
             Bin[] bestResults = new Bin[(int)MaxRectsBinPack.FreeRectChoiceHeuristic.End];
             int totalArea = rects.Sum(r => r.Width * r.Height);
             int heuristic = (int)MaxRectsBinPack.FreeRectChoiceHeuristic.Start;
-            int maxSize = Math.Max(rects.Max(r => r.Width), rects.Max(r => r.Height));
-            int maxIncreasement = Math.Max(1, (int)Math.Sqrt(totalArea) / 1000);
+            int maxEdge = Math.Max(rects.Max(r => r.Width), rects.Max(r => r.Height));
+            int maxWidthIncreasement = 6;//Math.Max(1, (int)Math.Sqrt(totalArea) * rects.Count / 200000);
+            int maxHeightDecreasement = 1;// Math.Max(1, maxWidthIncreasement / 20);
             Parallel.For(0, Environment.ProcessorCount - 1, _ =>
             {
                 while (true)
@@ -36,12 +36,13 @@ namespace TexturePacker.Net.Packager
                     var previousPriority = Thread.CurrentThread.Priority;
                     Thread.CurrentThread.Priority = ThreadPriority.AboveNormal;
                     var method = (MaxRectsBinPack.FreeRectChoiceHeuristic)h;
-                    int area = (int)(totalArea * 1.01);
-                    int width = (int)Math.Sqrt(area) / 2;
-                    int height = area / width + 1;
-                    int rounds0 = 0, rounds1 = 0, rounds2 = 0, rounds3 = 0, rounds4 = 0, rounds5 = 0;
+                    int rounds0 = 0, rounds1 = 0, rounds2 = 0, rounds3 = 0, rounds4 = 0, rounds5 = 0, rounds6 = 0;
                     MaxRectsBinPack bin = MaxRectsBinPacker.Value;
                     List<Rect> feasibleResult = null;
+
+                    int area = (int)(totalArea * 1.01);
+                    int width = Math.Max((int)Math.Sqrt(area) / 2, maxEdge);
+                    int height = area / width + 1;
                     while (true)
                     {
                         var rectsClone = new List<Rect>(rects);
@@ -52,18 +53,20 @@ namespace TexturePacker.Net.Packager
                         {
                             break;
                         }
-                        width += Math.Max(width / 100, 1);
+                        width += Math.Max((int)(width * rects.Count / 5000.0f), 1);
                     }
-                    area = width * height;
+                    int startArea = area = width * height;
                     List<Rect> minRects = feasibleResult;
                     int minWidth = width;
                     int minHeight = height;
                     // We found an area can fit all rects, now we try to narrow this area
-                    int heightDecreasement = maxIncreasement;
+                    int heightDecreasement = maxHeightDecreasement;
                     int maxWidth = (int)Math.Sqrt(area);
-                    width = Math.Max(maxSize, width / 2);
+                    width = Math.Max(maxEdge, width / 2);
+                    int countLoopWidth = 0;
                     while (true)
                     {
+                        countLoopWidth++;
                         height = area / width;
                         bool foundNewMinBin = false;
                         while (true)
@@ -97,7 +100,7 @@ namespace TexturePacker.Net.Packager
                                 {
                                     // Cannot decrease more height, try decrease some width
                                     height += 1;
-                                    int widthDecreasement = Math.Max(1, maxIncreasement / 2);
+                                    int widthDecreasement = Math.Max(1, maxWidthIncreasement / 20);
                                     int lastWidth = width;
                                     while (true)
                                     {
@@ -107,7 +110,7 @@ namespace TexturePacker.Net.Packager
                                         feasibleResult = bin.Insert(rectsClone, method);
                                         if (rectsClone.Count == 0)
                                         {
-                                            rounds3++;
+                                            rounds4++;
                                             if (width * height < area)
                                             {
                                                 minRects = feasibleResult;
@@ -118,21 +121,25 @@ namespace TexturePacker.Net.Packager
                                         }
                                         else if (widthDecreasement > 1)
                                         {
-                                            rounds4++;
+                                            rounds5++;
                                             // Go back and decrease the decreasement
                                             width += widthDecreasement;
                                             widthDecreasement /= 2;
                                         }
                                         else
                                         {
-                                            rounds5++;
+                                            rounds6++;
                                             break;
                                         }
                                     }
                                     width = lastWidth;
                                 }
+                                else
+                                {
+                                    rounds3++;
+                                }
 
-                                heightDecreasement = maxIncreasement;
+                                heightDecreasement = maxHeightDecreasement;
                                 break;
                             }
                         }
@@ -140,7 +147,7 @@ namespace TexturePacker.Net.Packager
                         {
                             break;
                         }
-                        width = Math.Min(width + maxIncreasement, maxWidth);
+                        width = Math.Min(width + maxWidthIncreasement, maxWidth);
                     }
 
                     Thread.CurrentThread.Priority = previousPriority;
@@ -150,7 +157,10 @@ namespace TexturePacker.Net.Packager
                         height = minHeight,
                         list = minRects
                     };
-                    File.AppendAllTextAsync($"{method}.log", $"{rounds0}, {rounds1}, {rounds2}, {rounds3}, {rounds4}, {rounds5} | {(float)totalArea / area:P} {(DateTime.UtcNow - start).TotalSeconds} | {start.TimeOfDay}\n");
+                    int totalRounds = rounds1 + rounds2 + rounds3 + rounds4 + rounds5 + rounds6;
+                    File.AppendAllTextAsync($"{method}.log", $"{rounds0} | {rounds1}+{rounds2}+{rounds3}+{rounds4}+{rounds5}+{rounds6}" +
+                        $"={totalRounds} | {countLoopWidth} | {(float)totalArea / area:P} | {(DateTime.UtcNow - start).TotalSeconds}" +
+                        $" | {totalArea}|{maxWidth}|{maxEdge}| {startArea}|{minWidth}x{minHeight}={area} | {maxWidthIncreasement}x{maxHeightDecreasement}\n");
                 }
             });
 

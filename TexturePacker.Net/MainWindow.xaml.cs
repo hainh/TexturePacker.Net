@@ -151,8 +151,8 @@ namespace TexturePacker.Net
             var random = new Random((int)(new DateTime(2020, 1, 1) - DateTime.UtcNow).TotalHours);
             for (int i = 0; i < length; i++)
             {
-                int width = random.Next(5, 200);
-                int height = random.Next(5, 200);
+                int width = random.Next(50, 2000);
+                int height = random.Next(50, 2000);
                 WriteableBitmap wb = BitmapFactory.New(width, height);
                 wb.FillRectangle(0, 0, width, height, AllColors[i % AllColors.Length]);
                 wb.DrawRectangle(0, 0, width, height, AllColors[(i + 2) % AllColors.Length]);
