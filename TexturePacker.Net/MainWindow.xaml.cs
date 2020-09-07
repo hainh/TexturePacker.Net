@@ -31,7 +31,7 @@ namespace TexturePacker.Net
             {
                 await Task.Delay(1);
                 LoadDeviceScale();
-                //GenerateTestImgs();
+                GenerateTestImgs();
             });
         }
 
@@ -69,75 +69,123 @@ namespace TexturePacker.Net
                 {
                     LoggerText.Content = $"Find {duration.TotalSeconds:0.###}s";
                     trvImages.ItemsSource = new List<ItemGroup>() { itemGroup };
-                    Progress.Visibility = Visibility.Visible;
-                });
 
-                Task.Run(async () =>
-                {
-                    await Task.Delay(60);
-                    DateTime start = DateTime.UtcNow;
-                    List<Item> allItems = itemGroup.GetAllItems(true).ToList();
-                    foreach (Item item in allItems)
-                    {
-                        item.LoadImage();
-                    }
-                    double loadSecs = (DateTime.UtcNow - start).TotalSeconds;
-                    Dispatcher.Invoke(() =>
-                    {
-                        foreach (Item item in allItems)
-                        {
-                            item.NotifyPropertyChanged(nameof(Item.Thumbnail));
-                        }
-                        LoggerText.Content += $" | Load {loadSecs:0.###}s";
-                    });
-                    DateTime packTime = DateTime.UtcNow;
-                    List<Packager.Rect> rects = allItems.Select(item => item.SpriteRect).ToList();
-                    List<Packager.Rect> result = Packager.Packager.Pack(rects, out int width, out int height);
-                    double packSecs = (DateTime.UtcNow - packTime).TotalSeconds;
-                    Dispatcher.Invoke(() =>
-                    {
-                        foreach (Item item in allItems)
-                        {
-                            item.NotifyPropertyChanged(nameof(Item.Thumbnail));
-                        }
-                        LoggerText.Content += $" | Pack {packSecs:0.###}s";
-                    });
-                    if (result != null)
-                    {
-                        DateTime renderTime = DateTime.UtcNow;
-                        WriteableBitmap writeableBitmap = BitmapFactory.New(width, height);
-                        foreach (var rect in result)
-                        {
-                            BitmapImage image = (rect.Item as Item).RawImage;
-                            if (rect.Rotated)
-                            {
-                                writeableBitmap.Blit(
-                                    new Rect(rect.X, rect.Y, rect.Width, rect.Height),
-                                    new WriteableBitmap(image).Rotate(90),
-                                    new Rect(0, 0, rect.Width, rect.Height));
-                            }
-                            else
-                            {
-                                writeableBitmap.Blit(
-                                    new Rect(rect.X, rect.Y, rect.Width, rect.Height),
-                                    new WriteableBitmap(image),
-                                    new Rect(0, 0, rect.Width, rect.Height));
-                            }
-                        }
-                        writeableBitmap.Freeze();
-                        double renderSecs = (DateTime.UtcNow - renderTime).TotalSeconds;
-                        imgMainCanvas.Dispatcher.Invoke(() =>
-                        {
-                            LoggerText.Content += $" | Render {renderSecs:0.###}s";
-                            imgMainCanvas.Source = writeableBitmap;
-                            imgMainCanvas.Width = writeableBitmap.Width;
-                            imgMainCanvas.Height = writeableBitmap.Height;
-                            LoggerResult.Content = $"{writeableBitmap.PixelWidth}x{writeableBitmap.PixelHeight} {result.Sum(r => r.Width * r.Height) / (float)width / height:P}";
-                            Progress.Visibility = Visibility.Hidden;
-                        });
-                    }
-                });
+                    Progress.Visibility = Visibility.Visible;
+                    Progress.Value = 0;
+                    double left = (MainCanvas.ActualWidth - Progress.ActualWidth) / 2;
+                    Canvas.SetLeft(Progress, left);
+                    double top = (MainCanvas.ActualHeight - Progress.ActualHeight) / 2;
+                    Canvas.SetTop(Progress, top);
+
+                    Task.Run(() => LoadImagesAndTreeView(itemGroup));
+                }, System.Windows.Threading.DispatcherPriority.Send);
             }
+        }
+
+        private async void LoadImagesAndTreeView(ItemGroup itemGroup)
+        {
+            await Task.Delay(60);
+            DateTime start = DateTime.UtcNow;
+            List<Item> allItems = itemGroup.GetAllItems(true).ToList();
+            foreach (Item item in allItems)
+            {
+                item.LoadImage();
+            }
+            double loadSecs = (DateTime.UtcNow - start).TotalSeconds;
+            Dispatcher.Invoke(() =>
+            {
+                foreach (Item item in allItems)
+                {
+                    item.NotifyPropertyChanged(nameof(Item.Thumbnail));
+                }
+                LoggerText.Content += $" | Load {loadSecs:0.###}s";
+
+                Task.Run(() => Pack(allItems));
+            }, System.Windows.Threading.DispatcherPriority.Send);
+        }
+
+        private async void Pack(List<Item> allItems)
+        {
+            await Task.Delay(100);
+            DateTime packTime = DateTime.UtcNow;
+            List<Packager.Rect> rects = allItems.Select(item => item.SpriteRect).ToList();
+            Packager.Option option = new Packager.Option
+            {
+                AllowRotation = true,
+                MaxSide = 2048
+            };
+            Packager.ProgressRef progress = new Packager.ProgressRef();
+            CheckProgress(progress);
+            List<Packager.Rect> result = Packager.Packager.Pack(rects, option, out int width, out int height, progress);
+            double packSecs = (DateTime.UtcNow - packTime).TotalSeconds;
+            Dispatcher.Invoke(() =>
+            {
+                foreach (Item item in allItems)
+                {
+                    item.NotifyPropertyChanged(nameof(Item.Thumbnail));
+                }
+                LoggerText.Content += $" | Pack {packSecs:0.###}s";
+            });
+            if (result != null)
+            {
+                DateTime renderTime = DateTime.UtcNow;
+                WriteableBitmap writeableBitmap = BitmapFactory.New(width, height);
+                foreach (var rect in result)
+                {
+                    BitmapImage image = (rect.Item as Item).RawImage;
+                    if (rect.Rotated)
+                    {
+                        writeableBitmap.Blit(
+                            new Rect(rect.X, rect.Y, rect.Width, rect.Height),
+                            new WriteableBitmap(image).Rotate(90),
+                            new Rect(0, 0, rect.Width, rect.Height));
+                    }
+                    else
+                    {
+                        writeableBitmap.Blit(
+                            new Rect(rect.X, rect.Y, rect.Width, rect.Height),
+                            new WriteableBitmap(image),
+                            new Rect(0, 0, rect.Width, rect.Height));
+                    }
+                }
+                writeableBitmap.Freeze();
+                double renderSecs = (DateTime.UtcNow - renderTime).TotalSeconds;
+                Dispatcher.Invoke(() =>
+                {
+                    LoggerText.Content += $" | Render {renderSecs:0.###}s";
+                    imgMainCanvas.Source = writeableBitmap;
+                    imgMainCanvas.Width = writeableBitmap.Width;
+                    imgMainCanvas.Height = writeableBitmap.Height;
+                    LoggerResult.Content = $"{writeableBitmap.PixelWidth}x{writeableBitmap.PixelHeight} {result.Sum(r => r.Width * r.Height) / (float)width / height:P}";
+                    Progress.Visibility = Visibility.Hidden;
+                }, System.Windows.Threading.DispatcherPriority.Send);
+            }
+            else
+            {
+                Dispatcher.Invoke(() =>
+                {
+                    Progress.Visibility = Visibility.Hidden;
+                    LoggerResult.Content = $"Not fit in {option.MaxSide}x{option.MaxSide}";
+                }, System.Windows.Threading.DispatcherPriority.Send);
+            }
+        }
+
+        private void CheckProgress(Packager.ProgressRef progress)
+        {
+            Task.Run(async () =>
+            {
+                if (progress.AllDone)
+                {
+                    return;
+                }
+
+                await Task.Delay(5);
+                Dispatcher.Invoke(() =>
+                {
+                    Progress.Value = progress.Progress * Progress.Maximum;
+                    CheckProgress(progress);
+                });
+            });
         }
 
         private void TreeViewItem_RequestBringIntoView(object sender, RequestBringIntoViewEventArgs e)
@@ -147,12 +195,12 @@ namespace TexturePacker.Net
 
         private void GenerateTestImgs()
         {
-            const int length = 40;
+            const int length = 100;
             var random = new Random((int)(new DateTime(2020, 1, 1) - DateTime.UtcNow).TotalHours);
             for (int i = 0; i < length; i++)
             {
-                int width = random.Next(50, 2000);
-                int height = random.Next(50, 2000);
+                int width = random.Next(10, 200);
+                int height = random.Next(10, 200);
                 WriteableBitmap wb = BitmapFactory.New(width, height);
                 wb.FillRectangle(0, 0, width, height, AllColors[i % AllColors.Length]);
                 wb.DrawRectangle(0, 0, width, height, AllColors[(i + 2) % AllColors.Length]);

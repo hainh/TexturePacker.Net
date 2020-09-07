@@ -10,7 +10,7 @@ namespace TexturePacker.Net.Packager
 		private int binWidth;
 		private int binHeight;
 
-		private bool binAllowFlip;
+		private bool binAllowRotate;
 
         private readonly List<Rect> usedRectangles;
 		private readonly List<Rect> freeRectangles;
@@ -28,7 +28,7 @@ namespace TexturePacker.Net.Packager
 
 		public void Init(int width, int height, bool allowFlip = true)
         {
-			binAllowFlip = allowFlip;
+			binAllowRotate = allowFlip;
 			binWidth = width;
 			binHeight = height;
 
@@ -203,7 +203,7 @@ namespace TexturePacker.Net.Packager
 						bestX = freeRect.X;
 					}
 				}
-				if (binAllowFlip && freeRect.Width >= height && freeRect.Height >= width)
+				if (binAllowRotate && freeRect.Width >= height && freeRect.Height >= width)
 				{
 					int topSideY = freeRect.Y + width;
 					if (topSideY < bestY || (topSideY == bestY && freeRect.X < bestX))
@@ -248,7 +248,7 @@ namespace TexturePacker.Net.Packager
 					}
 				}
 
-				if (binAllowFlip && freeRect.Width >= height && freeRect.Height >= width)
+				if (binAllowRotate && freeRect.Width >= height && freeRect.Height >= width)
 				{
 					int flippedLeftoverHoriz = Math.Abs(freeRect.Width - height);
 					int flippedLeftoverVert = Math.Abs(freeRect.Height - width);
@@ -298,7 +298,7 @@ namespace TexturePacker.Net.Packager
 					}
 				}
 
-				if (binAllowFlip && freeRect.Width >= height && freeRect.Height >= width)
+				if (binAllowRotate && freeRect.Width >= height && freeRect.Height >= width)
 				{
 					int leftoverHoriz = Math.Abs(freeRect.Width - height);
 					int leftoverVert = Math.Abs(freeRect.Height - width);
@@ -348,7 +348,7 @@ namespace TexturePacker.Net.Packager
 					}
 				}
 
-				if (binAllowFlip && freeRect.Width >= height && freeRect.Height >= width)
+				if (binAllowRotate && freeRect.Width >= height && freeRect.Height >= width)
 				{
 					int leftoverHoriz = Math.Abs(freeRect.Width - height);
 					int leftoverVert = Math.Abs(freeRect.Height - width);
@@ -428,7 +428,7 @@ namespace TexturePacker.Net.Packager
 						bestContactScore = score;
 					}
 				}
-				if (binAllowFlip && freeRect.Width >= height && freeRect.Height >= width)
+				if (binAllowRotate && freeRect.Width >= height && freeRect.Height >= width)
 				{
 					int score = ContactPointScoreNode(freeRect.X, freeRect.Y, height, width);
 					if (score > bestContactScore)

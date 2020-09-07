@@ -73,9 +73,14 @@
                     </TreeView.Resources>
                 </TreeView>
             </Grid>
-            <Canvas Grid.Row="0" Grid.Column="1">
+            <Canvas Grid.Row="0" Grid.Column="1" Name="MainCanvas">
                 <!-- Second cell -->
                 <Image Name="imgMainCanvas" Width="500" Height="500" Stretch="None"/>
+                <ProgressBar Height="15" Width="200"
+                             Name="Progress"
+                             Visibility="Hidden"
+                             HorizontalAlignment="Center"
+                             VerticalAlignment="Center"/>
             </Canvas>
             <StackPanel Grid.Row="0" Grid.Column="2">
                 <!-- Third cell -->
@@ -111,7 +116,6 @@
             <Separator/>
             <CheckBox Content="Show outlines" Margin="20,0,20,0"/>
             <Separator/>
-            <ProgressBar IsIndeterminate="True" Height="10" Width="50" Name="Progress" Visibility="Hidden"/>
             <StatusBarItem Content="Status string" Name="LoggerText"/>
             <StatusBarItem Name="LoggerResult" HorizontalAlignment="Right"/>
         </StatusBar>
