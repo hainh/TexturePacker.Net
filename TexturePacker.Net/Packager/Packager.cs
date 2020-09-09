@@ -8,6 +8,7 @@ using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 using System.Windows.Input;
+using System.Windows.Threading;
 
 namespace TexturePacker.Net.Packager
 {
@@ -23,9 +24,13 @@ namespace TexturePacker.Net.Packager
                 width = height = 0;
                 return null;
             }
+            if (IsSpriteSheet(rects))
+            {
+                option.MaxWidthInrement = 100;
+            }
             int maxSide = option.MaxSide;
             bool allowRotation = option.AllowRotation;
-            progress.MethodCount = (int)MaxRectsBinPack.FreeRectChoiceHeuristic.End;
+            progress.SetMethodCount((int)MaxRectsBinPack.FreeRectChoiceHeuristic.End);
 
             DateTime packStart = DateTime.UtcNow;
             Bin[] bestResults = new Bin[(int)MaxRectsBinPack.FreeRectChoiceHeuristic.End];
@@ -34,19 +39,33 @@ namespace TexturePacker.Net.Packager
             int maxEdge = Math.Max(rects.Max(r => r.Width), rects.Max(r => r.Height));
             int maxWidthIncrement = Math.Max(1, Math.Min(option.MaxWidthInrement, (int)Math.Sqrt(totalArea) / 1024 + (int)Math.Pow(rects.Count / 50, 3)));
             int maxHeightDecreasement = Math.Max(1, maxWidthIncrement / 20);
-            Parallel.For(0, Environment.ProcessorCount - 0, _ =>
+            Parallel.For(0, Environment.ProcessorCount, _ =>
             {
                 while (true)
                 {
                     var h = Interlocked.Increment(ref heuristic);
-                    if (h >= (int)MaxRectsBinPack.FreeRectChoiceHeuristic.End
-                        || (h == (int)MaxRectsBinPack.FreeRectChoiceHeuristic.RectContactPointRule && rects.Count > 100))
+                    if (h >= (int)MaxRectsBinPack.FreeRectChoiceHeuristic.End)
                     {
-                        if (h < (int)MaxRectsBinPack.FreeRectChoiceHeuristic.End)
-                        {
-                            progress.IncreaseMethodsStarted();
-                        }
                         return;
+                    }
+
+                    if (h == (int)MaxRectsBinPack.FreeRectChoiceHeuristic.RectContactPointRule && rects.Count > 120)
+                    {
+                        progress.IncreaseFull(h, 8);
+                        Task.Run(async () =>
+                        {
+                            for (int i = 0; i < 10; i++)
+                            {
+                                progress.IncreaseDone(h, 1);
+#if DEBUG
+                                const int f = 1;
+#else
+                                const int f = 5;
+#endif
+                                await Task.Delay(rects.Count / f);
+                            }
+                        });
+                        continue;
                     }
                     DateTime start = DateTime.UtcNow;
                     var method = (MaxRectsBinPack.FreeRectChoiceHeuristic)h;
@@ -75,6 +94,7 @@ namespace TexturePacker.Net.Packager
                         bin.Init(width, height, allowRotation);
                         feasibleResult = bin.Insert(rectsClone, method);
                         rounds0++;
+                        progress.SetTemporaryProgress(h, rounds0 / 10);
                         if (rectsClone.Count == 0 || (height == maxSide && width == maxSide))
                         {
                             ShrinkRect(feasibleResult, out width, out height);
@@ -85,6 +105,7 @@ namespace TexturePacker.Net.Packager
                                 bin.Init(width, height, allowRotation);
                                 var newFeasibleResult = bin.Insert(rectsClone, method);
                                 rounds0++;
+                                progress.SetTemporaryProgress(h, rounds0 / 10);
                                 if (rectsClone.Count == 0)
                                 {
                                     height -= heightDec;
@@ -104,14 +125,13 @@ namespace TexturePacker.Net.Packager
                             break;
                         }
                     }
-                    progress.IncreaseFull(rounds0);
+                    progress.ResetTemporaryProgress(h);
                     if (feasibleResult.Count != rects.Count)
                     {
-                        progress.IncreaseDone(rounds0);
+                        progress.IncreaseFull(h, rounds0);
+                        progress.IncreaseDone(h, rounds0);
                         return;
                     }
-                    Thread.Sleep(1);
-                    Debug.WriteLine($"{progress.Progress:P}");
                     ShrinkRect(feasibleResult, out width, out height);
                     int startArea = area = width * height;
                     List<Rect> minRects = feasibleResult;
@@ -122,17 +142,11 @@ namespace TexturePacker.Net.Packager
                     int maxWidth = (int)Math.Sqrt(area);
                     width = Math.Max(maxEdge, area / maxSide);
                     int countLoopWidth = 0;
-                    progress.IncreaseFull((maxWidth - width) / maxWidthIncrement + 1);
-                    progress.IncreaseDone(rounds0);
-                    progress.IncreaseMethodsStarted();
+                    progress.IncreaseFull(h, rounds0 + (maxWidth - width) / maxWidthIncrement);
+                    progress.IncreaseDone(h, rounds0);
                     while (true)
                     {
                         countLoopWidth++;
-                        if (countLoopWidth % 20 == 0)
-                        {
-                            Thread.Sleep(1);
-                            Debug.WriteLine($"{progress.Progress:P}");
-                        }
                         height = area / width;
                         bool foundNewMinBin = false;
                         while (true)
@@ -143,7 +157,7 @@ namespace TexturePacker.Net.Packager
                             if (rectsClone.Count == 0)
                             {
                                 rounds1++;
-                                if (width * height < area)
+                                if (width * height <= area)
                                 {
                                     foundNewMinBin = true;
                                     minRects = feasibleResult;
@@ -177,7 +191,7 @@ namespace TexturePacker.Net.Packager
                                         if (rectsClone.Count == 0)
                                         {
                                             rounds4++;
-                                            if (width * height < area)
+                                            if (width * height <= area)
                                             {
                                                 minRects = feasibleResult;
                                                 area = width * height;
@@ -209,7 +223,7 @@ namespace TexturePacker.Net.Packager
                                 break;
                             }
                         }
-                        progress.IncrementDone();
+                        progress.IncreaseDone(h, 1);
                         if (width == maxWidth)
                         {
                             break;
@@ -255,6 +269,16 @@ namespace TexturePacker.Net.Packager
                 }
             }
         }
+
+        static bool IsSpriteSheet(List<Rect> rects)
+        {
+            HashSet<long> sizes = new HashSet<long>();
+            foreach (Rect rect in rects)
+            {
+                sizes.Add(rect.X > rect.Y ? (((long)rect.X << 32) + rect.Y) : (((long)rect.Y << 32) + rect.X));
+            }
+            return sizes.Count / (float)rects.Count < 0.1f; // 90% rects are equal in size
+        }
     }
 
     public class Option
@@ -267,7 +291,7 @@ namespace TexturePacker.Net.Packager
 
         public Option()
         {
-            MaxWidthInrement = 100;
+            MaxWidthInrement = 1;
             MaxSide = 2048;
             AllowRotation = true;
         }
@@ -276,62 +300,86 @@ namespace TexturePacker.Net.Packager
     [DebuggerDisplay("{ToString(),nq}, ")]
     public class ProgressRef
     {
-        private int Done = 0;
-        private int Full = 1;
-        private int MethodsStarted;
-        public int MethodCount;
+        private int[] Done;
+        private int[] Full;
+        private int MethodCount;
 
-        private readonly object lock1 = new object();
-        private readonly object lock2 = new object();
+        private readonly DataModel model;
 
-        public void IncreaseMethodsStarted()
+        public ProgressRef(DataModel dataModel)
         {
-            Interlocked.Increment(ref MethodsStarted);
+            model = dataModel;
         }
 
-        public void IncreaseFull(int amount)
+        public void SetMethodCount(int count)
         {
-            lock (lock1)
-            {
-                Full += amount;
-            }
+            MethodCount = count;
+            Done = new int[count];
+            Full = new int[count];
+            Array.Fill(Full, 2);
         }
 
-        public void IncrementDone()
+        public void SetTemporaryProgress(int method, int value)
         {
-            Interlocked.Increment(ref Done);
+            Full[method] = 100;
+            Done[method] = Math.Min(value, 20);
+            UpdateProressDataModel();
         }
 
-        public void IncreaseDone(int amount)
+        public void ResetTemporaryProgress(int method)
         {
-            lock (lock2)
-            {
-                Done += amount;
-            }
+            Done[method] = 0;
+            Full[method] = 2;
+            UpdateProressDataModel();
+        }
+
+        public void IncreaseFull(int method, int amount)
+        {
+            Full[method] += amount;
+            UpdateProressDataModel();
+        }
+
+        public void IncreaseDone(int method, int amount)
+        {
+            Done[method] += amount;
+            UpdateProressDataModel();
         }
 
         public void ForceAllDone()
         {
-            AllDone = true;
+            for (int i = 0; i < Done.Length; i++)
+            {
+                Done[i] = Full[i];
+            }
+            UpdateProressDataModel();
         }
 
-        public bool AllDone { get; private set; }
+        private void UpdateProressDataModel()
+        {
+            if (Progress * 2 >= lastProgress)
+            {
+                lastProgress++;
+                model.Progress = Progress;
+                model.NotifyPropertyChanged(nameof(DataModel.Progress));
+            }
+        }
 
-        float lastProgress;
+        int lastProgress;
 
         public float Progress
         {
             get
             {
-                float p = (float)Done / Full * MethodsStarted / MethodCount;
-                lastProgress = p > lastProgress ? p : lastProgress;
-                return lastProgress;
+                float p = Done
+                    .Select((d, i) => Math.Min(1, (float)d / Full[i]) / MethodCount)
+                    .Sum() * 100;
+                return p;
             }
         }
 
         public override string ToString()
         {
-            return $"{lastProgress:P}|{Done}|{Full}|{MethodsStarted}|{MethodCount}";
+            return $"{Progress/100:P0} | {string.Join(", ", Done.Select((d, i) => (Math.Min(1, (float)d / Full[i]) / MethodCount).ToString("P0")))}";
         }
     }
 

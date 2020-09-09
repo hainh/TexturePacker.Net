@@ -73,13 +73,10 @@ namespace TexturePacker.Net
             RawImage = new BitmapImage(uri);
             RawImage.Freeze();
             SpriteRect = new Rect(0, 0, RawImage.PixelWidth, RawImage.PixelHeight) { Item = this };
+        }
 
-            if (RawImage.PixelWidth < 20 * MainWindow.Instance.ScaleX
-                && RawImage.PixelHeight < 15 * MainWindow.Instance.ScaleY)
-            {
-                Thumbnail = RawImage;
-            }
-
+        public void UpdateThumbnail()
+        {
             Thumbnail = RawImage;
         }
     }

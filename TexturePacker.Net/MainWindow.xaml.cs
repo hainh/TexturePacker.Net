@@ -2,6 +2,7 @@
 using Microsoft.Win32;
 using System;
 using System.Collections.Generic;
+using System.ComponentModel;
 using System.ComponentModel.DataAnnotations;
 using System.IO;
 using System.Linq;
@@ -19,7 +20,7 @@ namespace TexturePacker.Net
     /// <summary>
     /// Interaction logic for MainWindow.xaml
     /// </summary>
-    public partial class MainWindow : Window
+    public partial class MainWindow : Window, INotifyPropertyChanged
     {
         public static MainWindow Instance { get; private set; }
         public MainWindow()
@@ -31,13 +32,31 @@ namespace TexturePacker.Net
             {
                 await Task.Delay(1);
                 LoadDeviceScale();
-                GenerateTestImgs();
+                //GenerateTestImgs();
             });
+
+            MainCanvas.SizeChanged += MainCanvas_SizeChanged;
         }
+
+        private void MainCanvas_SizeChanged(object sender, SizeChangedEventArgs e)
+        {
+            mainScrollViewer.Width = MainCanvas.ActualWidth;
+            mainScrollViewer.Height = MainCanvas.ActualHeight;
+        }
+
+        private List<Image> Images;
 
         public double ScaleX { get; private set; }
         
         public double ScaleY { get; private set; }
+
+        public double Progress { get; set; }
+
+        public event PropertyChangedEventHandler PropertyChanged;
+        protected void NotifyPropertyChange(string propertyName)
+        {
+            PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));
+        }
 
         private void LoadDeviceScale()
         {
@@ -50,6 +69,7 @@ namespace TexturePacker.Net
         private void MenuItem_Click(object sender, RoutedEventArgs e)
         {
             LoadDeviceScale();
+            RenderOptions.SetBitmapScalingMode(imagesCanvas, BitmapScalingMode.NearestNeighbor);
 
             var open = new OpenFileDialog
             {
@@ -70,12 +90,12 @@ namespace TexturePacker.Net
                     LoggerText.Content = $"Find {duration.TotalSeconds:0.###}s";
                     trvImages.ItemsSource = new List<ItemGroup>() { itemGroup };
 
-                    Progress.Visibility = Visibility.Visible;
-                    Progress.Value = 0;
-                    double left = (MainCanvas.ActualWidth - Progress.ActualWidth) / 2;
-                    Canvas.SetLeft(Progress, left);
-                    double top = (MainCanvas.ActualHeight - Progress.ActualHeight) / 2;
-                    Canvas.SetTop(Progress, top);
+                    progressBar.Visibility = Visibility.Visible;
+                    progressBar.Value = 0;
+                    double left = (MainCanvas.ActualWidth - progressBar.ActualWidth) / 2;
+                    Canvas.SetLeft(progressBar, left);
+                    double top = (MainCanvas.ActualHeight - progressBar.ActualHeight) / 2;
+                    Canvas.SetTop(progressBar, top);
 
                     Task.Run(() => LoadImagesAndTreeView(itemGroup));
                 }, System.Windows.Threading.DispatcherPriority.Send);
@@ -104,9 +124,9 @@ namespace TexturePacker.Net
             }, System.Windows.Threading.DispatcherPriority.Send);
         }
 
-        private async void Pack(List<Item> allItems)
+        private /*async*/ void Pack(List<Item> allItems)
         {
-            await Task.Delay(100);
+            //await Task.Delay(100);
             DateTime packTime = DateTime.UtcNow;
             List<Packager.Rect> rects = allItems.Select(item => item.SpriteRect).ToList();
             Packager.Option option = new Packager.Option
@@ -114,78 +134,92 @@ namespace TexturePacker.Net
                 AllowRotation = true,
                 MaxSide = 2048
             };
-            Packager.ProgressRef progress = new Packager.ProgressRef();
-            CheckProgress(progress);
+            DataModel dataModel = new DataModel();
+            Packager.ProgressRef progress = new Packager.ProgressRef(dataModel);
+            Dispatcher.Invoke(() => progressBar.DataContext = dataModel);
             List<Packager.Rect> result = Packager.Packager.Pack(rects, option, out int width, out int height, progress);
             double packSecs = (DateTime.UtcNow - packTime).TotalSeconds;
             Dispatcher.Invoke(() =>
             {
                 foreach (Item item in allItems)
                 {
+                    item.UpdateThumbnail();
                     item.NotifyPropertyChanged(nameof(Item.Thumbnail));
                 }
                 LoggerText.Content += $" | Pack {packSecs:0.###}s";
             });
             if (result != null)
             {
-                DateTime renderTime = DateTime.UtcNow;
-                WriteableBitmap writeableBitmap = BitmapFactory.New(width, height);
-                foreach (var rect in result)
-                {
-                    BitmapImage image = (rect.Item as Item).RawImage;
-                    if (rect.Rotated)
-                    {
-                        writeableBitmap.Blit(
-                            new Rect(rect.X, rect.Y, rect.Width, rect.Height),
-                            new WriteableBitmap(image).Rotate(90),
-                            new Rect(0, 0, rect.Width, rect.Height));
-                    }
-                    else
-                    {
-                        writeableBitmap.Blit(
-                            new Rect(rect.X, rect.Y, rect.Width, rect.Height),
-                            new WriteableBitmap(image),
-                            new Rect(0, 0, rect.Width, rect.Height));
-                    }
-                }
-                writeableBitmap.Freeze();
-                double renderSecs = (DateTime.UtcNow - renderTime).TotalSeconds;
+                //WriteableBitmap writeableBitmap = BitmapFactory.New(width, height);
+                //foreach (var rect in result)
+                //{
+                //    BitmapImage image = (rect.Item as Item).RawImage;
+                //    if (rect.Rotated)
+                //    {
+                //        writeableBitmap.Blit(
+                //            new Rect(rect.X, rect.Y, rect.Width, rect.Height),
+                //            new WriteableBitmap(image).Rotate(90),
+                //            new Rect(0, 0, rect.Width, rect.Height));
+                //    }
+                //    else
+                //    {
+                //        writeableBitmap.Blit(
+                //            new Rect(rect.X, rect.Y, rect.Width, rect.Height),
+                //            new WriteableBitmap(image),
+                //            new Rect(0, 0, rect.Width, rect.Height));
+                //    }
+                //}
+                //writeableBitmap.Freeze();
                 Dispatcher.Invoke(() =>
                 {
+                    DateTime renderTime = DateTime.UtcNow;
+                    Images = new List<Image>();
+                    imagesCanvas.Width = width;
+                    imagesCanvas.Height = height;
+                    foreach (var rect in result)
+                    {
+                        BitmapImage bmImage = (rect.Item as Item).RawImage;
+                        Image image = new Image();
+                        image.Source = bmImage;
+                        if (rect.Rotated)
+                        {
+                            image.LayoutTransform = new RotateTransform(90, 0.5, 0.5);
+                        }
+                        imagesCanvas.Children.Add(image);
+                        Canvas.SetLeft(image, rect.X);
+                        Canvas.SetTop(image, rect.Y);
+                    }
+                    double scale = 1.5;
+                    imagesCanvas.LayoutTransform = new ScaleTransform(scale, scale);
+                    Task.Run(async () =>
+                    {
+                        await Task.Delay(100);
+                        Dispatcher.Invoke(() =>
+                        {
+                            if (imagesCanvas.ActualHeight * scale > mainScrollViewer.ActualHeight)
+                            {
+                                mainScrollViewer.ScrollToVerticalOffset(imagesCanvas.Margin.Top);
+                            }
+                            if (imagesCanvas.ActualWidth * scale > mainScrollViewer.ActualWidth)
+                            {
+                                mainScrollViewer.ScrollToHorizontalOffset(imagesCanvas.Margin.Left);
+                            }
+                        });
+                    });
+                    double renderSecs = (DateTime.UtcNow - renderTime).TotalSeconds;
                     LoggerText.Content += $" | Render {renderSecs:0.###}s";
-                    imgMainCanvas.Source = writeableBitmap;
-                    imgMainCanvas.Width = writeableBitmap.Width;
-                    imgMainCanvas.Height = writeableBitmap.Height;
-                    LoggerResult.Content = $"{writeableBitmap.PixelWidth}x{writeableBitmap.PixelHeight} {result.Sum(r => r.Width * r.Height) / (float)width / height:P}";
-                    Progress.Visibility = Visibility.Hidden;
+                    LoggerResult.Content = $"{width}x{height} {result.Sum(r => r.Width * r.Height) / (float)width / height:P}";
+                    progressBar.Visibility = Visibility.Hidden;
                 }, System.Windows.Threading.DispatcherPriority.Send);
             }
             else
             {
                 Dispatcher.Invoke(() =>
                 {
-                    Progress.Visibility = Visibility.Hidden;
+                    progressBar.Visibility = Visibility.Hidden;
                     LoggerResult.Content = $"Not fit in {option.MaxSide}x{option.MaxSide}";
                 }, System.Windows.Threading.DispatcherPriority.Send);
             }
-        }
-
-        private void CheckProgress(Packager.ProgressRef progress)
-        {
-            Task.Run(async () =>
-            {
-                if (progress.AllDone)
-                {
-                    return;
-                }
-
-                await Task.Delay(5);
-                Dispatcher.Invoke(() =>
-                {
-                    Progress.Value = progress.Progress * Progress.Maximum;
-                    CheckProgress(progress);
-                });
-            });
         }
 
         private void TreeViewItem_RequestBringIntoView(object sender, RequestBringIntoViewEventArgs e)
