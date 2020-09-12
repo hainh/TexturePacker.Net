@@ -1,19 +1,17 @@
-﻿using Microsoft.VisualBasic;
-using Microsoft.Win32;
+﻿using Microsoft.Win32;
 using System;
 using System.Collections.Generic;
 using System.ComponentModel;
-using System.ComponentModel.DataAnnotations;
 using System.IO;
 using System.Linq;
 using System.Reflection;
 using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Controls;
-using System.Windows.Documents;
+using System.Windows.Input;
 using System.Windows.Media;
+using System.Windows.Media.Animation;
 using System.Windows.Media.Imaging;
-using static System.Windows.SystemParameters;
 
 namespace TexturePacker.Net
 {
@@ -27,22 +25,15 @@ namespace TexturePacker.Net
         {
             Instance = this;
             InitializeComponent();
-            LoggerText.Content = string.Empty;
-            Dispatcher.InvokeAsync(async() =>
-            {
-                await Task.Delay(1);
-                LoadDeviceScale();
-                //GenerateTestImgs();
-            });
-
-            MainCanvas.SizeChanged += MainCanvas_SizeChanged;
         }
 
         private void MainCanvas_SizeChanged(object sender, SizeChangedEventArgs e)
         {
-            mainScrollViewer.Width = MainCanvas.ActualWidth;
-            mainScrollViewer.Height = MainCanvas.ActualHeight;
+            mainScrollViewer.Width = mainCanvas.ActualWidth;
+            mainScrollViewer.Height = mainCanvas.ActualHeight;
         }
+
+        private DataModel Data;
 
         private List<Image> Images;
 
@@ -61,15 +52,60 @@ namespace TexturePacker.Net
         private void LoadDeviceScale()
         {
             PresentationSource source = PresentationSource.FromVisual(this);
-            System.Windows.Media.Matrix matrix = source.CompositionTarget.TransformToDevice;
+            Matrix matrix = source.CompositionTarget.TransformToDevice;
             ScaleX = matrix.M11;
             ScaleY = matrix.M22;
+        }
+
+        private void ZoomSlider_ValueChanged(object sender, RoutedPropertyChangedEventArgs<double> e)
+        {
+            double scale = Data.GetScaleFromSiler();
+            imagesCanvas.LayoutTransform = new ScaleTransform(scale, scale);
+        }
+
+        private void ZoomTxb_PreviewKeyDown(object sender, KeyEventArgs e)
+        {
+            int d = e.Key switch
+            {
+                Key.Up => 1,
+                Key.Down => -1,
+                Key.PageUp => 10,
+                Key.PageDown => -10,
+                _ => 0
+            };
+            if (d != 0)
+            {
+                Data.ZoomSliderValue = Math.Max(zoomSlider.Minimum, Math.Min(zoomSlider.Maximum, Data.ZoomSliderValue + d));
+                e.Handled = true;
+            }
+        }
+
+        private void ImagesCanvas_MouseWheel(object sender, MouseWheelEventArgs e)
+        {
+            e.Handled = true;
+            Point position = Mouse.GetPosition(imagesCanvas);
+            double scale0 = Data.GetScaleFromSiler();
+
+            int value = e.Delta > 0 ? Math.Max(1, e.Delta / 120) : Math.Min(-1, e.Delta / 120);
+            Data.ZoomSliderValue = Math.Max(zoomSlider.Minimum, Math.Min(zoomSlider.Maximum, Data.ZoomSliderValue + value));
+            double scale1 = Data.GetScaleFromSiler();
+
+            double sw = mainScrollViewer.ScrollableWidth;
+            if (sw > 0)
+            {
+                mainScrollViewer.ScrollToHorizontalOffset(mainScrollViewer.HorizontalOffset + position.X * (scale1 - scale0));
+            }
+
+            double sh = mainScrollViewer.ScrollableHeight;
+            if (sh > 0)
+            {
+                mainScrollViewer.ScrollToVerticalOffset(mainScrollViewer.VerticalOffset + position.Y * (scale1 - scale0));
+            }
         }
 
         private void MenuItem_Click(object sender, RoutedEventArgs e)
         {
             LoadDeviceScale();
-            RenderOptions.SetBitmapScalingMode(imagesCanvas, BitmapScalingMode.NearestNeighbor);
 
             var open = new OpenFileDialog
             {
@@ -92,9 +128,9 @@ namespace TexturePacker.Net
 
                     progressBar.Visibility = Visibility.Visible;
                     progressBar.Value = 0;
-                    double left = (MainCanvas.ActualWidth - progressBar.ActualWidth) / 2;
+                    double left = (mainCanvas.ActualWidth - progressBar.ActualWidth) / 2;
                     Canvas.SetLeft(progressBar, left);
-                    double top = (MainCanvas.ActualHeight - progressBar.ActualHeight) / 2;
+                    double top = (mainCanvas.ActualHeight - progressBar.ActualHeight) / 2;
                     Canvas.SetTop(progressBar, top);
 
                     Task.Run(() => LoadImagesAndTreeView(itemGroup));
@@ -124,9 +160,8 @@ namespace TexturePacker.Net
             }, System.Windows.Threading.DispatcherPriority.Send);
         }
 
-        private /*async*/ void Pack(List<Item> allItems)
+        private void Pack(List<Item> allItems)
         {
-            //await Task.Delay(100);
             DateTime packTime = DateTime.UtcNow;
             List<Packager.Rect> rects = allItems.Select(item => item.SpriteRect).ToList();
             Packager.Option option = new Packager.Option
@@ -139,37 +174,31 @@ namespace TexturePacker.Net
             Dispatcher.Invoke(() => progressBar.DataContext = dataModel);
             List<Packager.Rect> result = Packager.Packager.Pack(rects, option, out int width, out int height, progress);
             double packSecs = (DateTime.UtcNow - packTime).TotalSeconds;
+            bool updatedThumbnail = false;
+            void updateThumbnail()
+            {
+                if (!updatedThumbnail)
+                {
+                    foreach (Item item in allItems)
+                    {
+                        item.UpdateThumbnail();
+                        item.NotifyPropertyChanged(nameof(Item.Thumbnail));
+                    }
+                    updatedThumbnail = true;
+                }
+            }
             Dispatcher.Invoke(() =>
             {
-                foreach (Item item in allItems)
-                {
-                    item.UpdateThumbnail();
-                    item.NotifyPropertyChanged(nameof(Item.Thumbnail));
-                }
+                updateThumbnail();
                 LoggerText.Content += $" | Pack {packSecs:0.###}s";
+            });
+            Dispatcher.InvokeAsync(async() =>
+            {
+                await Task.Delay(500);
+                updateThumbnail();
             });
             if (result != null)
             {
-                //WriteableBitmap writeableBitmap = BitmapFactory.New(width, height);
-                //foreach (var rect in result)
-                //{
-                //    BitmapImage image = (rect.Item as Item).RawImage;
-                //    if (rect.Rotated)
-                //    {
-                //        writeableBitmap.Blit(
-                //            new Rect(rect.X, rect.Y, rect.Width, rect.Height),
-                //            new WriteableBitmap(image).Rotate(90),
-                //            new Rect(0, 0, rect.Width, rect.Height));
-                //    }
-                //    else
-                //    {
-                //        writeableBitmap.Blit(
-                //            new Rect(rect.X, rect.Y, rect.Width, rect.Height),
-                //            new WriteableBitmap(image),
-                //            new Rect(0, 0, rect.Width, rect.Height));
-                //    }
-                //}
-                //writeableBitmap.Freeze();
                 Dispatcher.Invoke(() =>
                 {
                     DateTime renderTime = DateTime.UtcNow;
@@ -179,8 +208,10 @@ namespace TexturePacker.Net
                     foreach (var rect in result)
                     {
                         BitmapImage bmImage = (rect.Item as Item).RawImage;
-                        Image image = new Image();
-                        image.Source = bmImage;
+                        Image image = new Image
+                        {
+                            Source = bmImage
+                        };
                         if (rect.Rotated)
                         {
                             image.LayoutTransform = new RotateTransform(90, 0.5, 0.5);
@@ -189,13 +220,12 @@ namespace TexturePacker.Net
                         Canvas.SetLeft(image, rect.X);
                         Canvas.SetTop(image, rect.Y);
                     }
-                    double scale = 1.5;
-                    imagesCanvas.LayoutTransform = new ScaleTransform(scale, scale);
                     Task.Run(async () =>
                     {
-                        await Task.Delay(100);
+                        await Task.Delay(10);
                         Dispatcher.Invoke(() =>
                         {
+                            double scale = Data.GetScaleFromSiler();
                             if (imagesCanvas.ActualHeight * scale > mainScrollViewer.ActualHeight)
                             {
                                 mainScrollViewer.ScrollToVerticalOffset(imagesCanvas.Margin.Top);
@@ -254,5 +284,20 @@ namespace TexturePacker.Net
             AllColors =  colorsTypePropertyInfos.Select(propInfo => (Color)propInfo.GetValue(null)).ToArray();
         }
         public static Color[] AllColors { get; }
+
+        private void Window_Loaded(object sender, RoutedEventArgs e)
+        {
+            RenderOptions.SetBitmapScalingMode(imagesCanvas, BitmapScalingMode.NearestNeighbor);
+            LoggerText.Content = string.Empty;
+            LoadDeviceScale();
+            //GenerateTestImgs();
+            Data = new DataModel()
+            {
+                ZoomSliderValue = 110,
+                ZoomTxbValue = "100"
+            };
+            zoomSlider.DataContext = Data;
+            zoomTxb.DataContext = Data;
+        }
     }
 }

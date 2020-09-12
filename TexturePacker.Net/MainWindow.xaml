@@ -5,7 +5,8 @@
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
         xmlns:local="clr-namespace:TexturePacker.Net"
         mc:Ignorable="d"
-        Title="TexturePacker.Net" MinHeight="650" MinWidth="1200">
+        Title="TexturePacker.Net" MinHeight="650" MinWidth="1200"
+        Loaded="Window_Loaded">
 
     <Grid>
         <Grid.ColumnDefinitions>
@@ -27,7 +28,7 @@
             <Grid.ColumnDefinitions>
                 <ColumnDefinition Width="310" />
                 <ColumnDefinition Width="*" />
-                <ColumnDefinition Width="350" />
+                <ColumnDefinition Width="320" />
             </Grid.ColumnDefinitions>
             <Grid.RowDefinitions>
                 <RowDefinition Height="*"/>
@@ -83,12 +84,13 @@
                     </TreeView.Resources>
                 </TreeView>
             </Grid>
-            <Canvas Grid.Row="0" Grid.Column="1" Name="MainCanvas">
+            <Canvas Grid.Row="0" Grid.Column="1" Name="mainCanvas" Background="#FF2E2E2E" SizeChanged="MainCanvas_SizeChanged">
                 <!-- Second cell -->
                 <ScrollViewer HorizontalScrollBarVisibility="Auto"
                               VerticalScrollBarVisibility="Auto"
-                              Name="mainScrollViewer">
-                    <Canvas Name="imagesCanvas" Width="500" Height="500" Margin="50,50">
+                              Name="mainScrollViewer"
+                              BorderBrush="Black" BorderThickness="1,1,1,1">
+                    <Canvas Name="imagesCanvas" Width="450" Height="450" Margin="50,50" MouseWheel="ImagesCanvas_MouseWheel">
                         <Canvas.Background>
                             <ImageBrush ImageSource="/bgr.png"
                                         TileMode="FlipXY"
@@ -128,14 +130,17 @@
         </Grid>
         <StatusBar Grid.Row="2" Grid.Column="0">
             <StatusBarItem Content="Zoom" Margin="0,-2,0,0"/>
-            <Slider MinWidth="220"
-                    Value="100" Minimum="10" Maximum="190"
-                    Margin="0,0,0,0"/>
-            <TextBox Background="Transparent" Text="1000" Width="33" 
-                     BorderBrush="Transparent"
+            <Slider MinWidth="220" Name="zoomSlider"
+                    Value="{Binding ZoomSliderValue, UpdateSourceTrigger=PropertyChanged}"
+                    Minimum="0" Maximum="220"
+                    Margin="0,0,0,0" SmallChange="1"
+                    ValueChanged="ZoomSlider_ValueChanged"/>
+            <TextBox Background="Transparent"
+                     Text="{Binding ZoomTxbValue, UpdateSourceTrigger=PropertyChanged}"
+                     Width="33" BorderBrush="Transparent" Name="zoomTxb"
                      Margin="-6,0,0,0" Padding="0,-1,0,0"
-                     TextAlignment="Right">
-            </TextBox>
+                     TextAlignment="Right"
+                     PreviewKeyDown="ZoomTxb_PreviewKeyDown"/>
             <StatusBarItem Content="%" Margin="-5,-2,10,0"/>
             <Button Content="-" Width="33" Padding="0,2" Margin="0,-2"/>
             <Button Content="+" Width="33" Padding="0,2" Margin="0,-2"/>
