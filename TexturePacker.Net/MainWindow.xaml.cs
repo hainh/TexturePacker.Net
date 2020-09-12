@@ -299,5 +299,68 @@ namespace TexturePacker.Net
             zoomSlider.DataContext = Data;
             zoomTxb.DataContext = Data;
         }
+
+        private void MinusBtn_Click(object sender, RoutedEventArgs e)
+        {
+            e.Handled = true;
+            Data.ZoomSliderValue = Math.Max(zoomSlider.Minimum, Math.Min(zoomSlider.Maximum, Data.ZoomSliderValue - 3));
+        }
+
+        private void PlusBtn_Click(object sender, RoutedEventArgs e)
+        {
+            e.Handled = true;
+            Data.ZoomSliderValue = Math.Max(zoomSlider.Minimum, Math.Min(zoomSlider.Maximum, Data.ZoomSliderValue + 3));
+        }
+
+        private void OneByOneBtn_Click(object sender, RoutedEventArgs e)
+        {
+            e.Handled = true;
+            Data.ZoomSliderValue = (zoomSlider.Minimum + zoomSlider.Maximum) / 2;
+        }
+
+        private void FitBtn_Click(object sender, RoutedEventArgs e)
+        {
+            e.Handled = true;
+            double scaleX = mainCanvas.ActualWidth / imagesCanvas.ActualWidth;
+            double scaleY = mainCanvas.ActualHeight / imagesCanvas.ActualHeight;
+            double scale = Math.Min(scaleX, scaleY);
+
+            double hScrollBarHeight = 0;
+            double vSrollBarWidth = 0;
+
+            if (scale * imagesCanvas.ActualWidth + imagesCanvas.Margin.Left + imagesCanvas.Margin.Right > mainCanvas.ActualWidth
+                && scale * imagesCanvas.ActualHeight + imagesCanvas.Margin.Top + imagesCanvas.Margin.Bottom > mainCanvas.ActualHeight)
+            {
+                vSrollBarWidth = SystemParameters.VerticalScrollBarWidth;
+                hScrollBarHeight = SystemParameters.HorizontalScrollBarHeight;
+                scaleX = (mainCanvas.ActualWidth - vSrollBarWidth) / imagesCanvas.ActualWidth;
+                scaleY = (mainCanvas.ActualHeight - hScrollBarHeight) / imagesCanvas.ActualHeight;
+                scale = Math.Min(scaleX, scaleY);
+            }
+
+            Data.ZoomTxbValue = Math.Floor(scale * 100).ToString();
+            scale = int.Parse(Data.ZoomTxbValue) / 100.0;
+            mainScrollViewer.ScrollToVerticalOffset(imagesCanvas.Margin.Top - (mainCanvas.ActualHeight - hScrollBarHeight - imagesCanvas.ActualHeight * scale) / 2);
+            mainScrollViewer.ScrollToHorizontalOffset(imagesCanvas.Margin.Left - (mainCanvas.ActualWidth - vSrollBarWidth - imagesCanvas.ActualWidth * scale) / 2);
+        }
+
+        Point lastMouseWheelPressedPos = new Point(int.MinValue, 0);
+        private void ImagesCanvas_MouseMove(object sender, MouseEventArgs e)
+        {
+            if (e.MiddleButton == MouseButtonState.Pressed)
+            {
+                var currentPos = Mouse.GetPosition(mainCanvas);
+                if (lastMouseWheelPressedPos.X != int.MinValue)
+                {
+                    mainScrollViewer.ScrollToHorizontalOffset(mainScrollViewer.HorizontalOffset - (currentPos.X - lastMouseWheelPressedPos.X));
+                    mainScrollViewer.ScrollToVerticalOffset(mainScrollViewer.VerticalOffset - (currentPos.Y - lastMouseWheelPressedPos.Y));
+                }
+                lastMouseWheelPressedPos = currentPos;
+            }
+            else
+            {
+                lastMouseWheelPressedPos.X = int.MinValue;
+            }
+        }
     }
 }

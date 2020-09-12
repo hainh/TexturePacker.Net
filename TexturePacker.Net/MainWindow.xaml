@@ -90,7 +90,9 @@
                               VerticalScrollBarVisibility="Auto"
                               Name="mainScrollViewer"
                               BorderBrush="Black" BorderThickness="1,1,1,1">
-                    <Canvas Name="imagesCanvas" Width="450" Height="450" Margin="50,50" MouseWheel="ImagesCanvas_MouseWheel">
+                    <Canvas Name="imagesCanvas" Width="450" Height="450" Margin="50,50"
+                            MouseWheel="ImagesCanvas_MouseWheel"
+                            MouseMove="ImagesCanvas_MouseMove">
                         <Canvas.Background>
                             <ImageBrush ImageSource="/bgr.png"
                                         TileMode="FlipXY"
@@ -142,11 +144,10 @@
                      TextAlignment="Right"
                      PreviewKeyDown="ZoomTxb_PreviewKeyDown"/>
             <StatusBarItem Content="%" Margin="-5,-2,10,0"/>
-            <Button Content="-" Width="33" Padding="0,2" Margin="0,-2"/>
-            <Button Content="+" Width="33" Padding="0,2" Margin="0,-2"/>
-            <Button Content="1:1" Width="33" Padding="0,2" Margin="0,-2"/>
-            <Button Content="Fit" Width="33" Padding="0,2" Margin="0,-2"/>
-            <CheckBox Content="Auto fit" Margin="20,0,20,0"/>
+            <Button Content="-" Width="33" Padding="0,2" Margin="0,-2" Click="MinusBtn_Click"/>
+            <Button Content="+" Width="33" Padding="0,2" Margin="0,-2" Click="PlusBtn_Click"/>
+            <Button Content="1:1" Width="33" Padding="0,2" Margin="0,-2" Click="OneByOneBtn_Click"/>
+            <Button Content="Fit" Width="33" Padding="0,2" Margin="0,-2" Click="FitBtn_Click"/>
             <Separator/>
             <CheckBox Content="Show outlines" Margin="20,0,20,0"/>
             <Separator/>
