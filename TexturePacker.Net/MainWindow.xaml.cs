@@ -145,13 +145,11 @@ namespace TexturePacker.Net
             };
             if (open.ShowDialog()?.Equals(true)??false)
             {
-                var directory = Path.GetDirectoryName(open.FileName);
                 var start = DateTime.UtcNow;
+                var directory = Path.GetDirectoryName(open.FileName);
                 ItemGroup itemGroup = new ItemGroup(directory, directory, Path.GetFileName(directory));
-                var duration = DateTime.UtcNow - start;
                 Dispatcher.Invoke(() =>
                 {
-                    LoggerText.Content = $"Find {duration.TotalSeconds:0.###}s";
                     trvImages.ItemsSource = new List<ItemGroup>() { itemGroup };
 
                     progressBar.Visibility = Visibility.Visible;
@@ -161,15 +159,14 @@ namespace TexturePacker.Net
                     double top = (mainCanvas.ActualHeight - progressBar.ActualHeight) / 2;
                     Canvas.SetTop(progressBar, top);
 
-                    Task.Run(() => LoadImagesAndTreeView(itemGroup));
+                    Task.Run(() => LoadImagesAndTreeView(itemGroup, start));
                 }, System.Windows.Threading.DispatcherPriority.Send);
             }
         }
 
-        private async void LoadImagesAndTreeView(ItemGroup itemGroup)
+        private async void LoadImagesAndTreeView(ItemGroup itemGroup, DateTime start)
         {
             await Task.Delay(60);
-            DateTime start = DateTime.UtcNow;
             List<Item> allItems = itemGroup.GetAllItems(true).ToList();
             foreach (Item item in allItems)
             {
@@ -182,7 +179,7 @@ namespace TexturePacker.Net
                 {
                     item.NotifyPropertyChanged(nameof(Item.Thumbnail));
                 }
-                LoggerText.Content += $" | Load {loadSecs:0.###}s";
+                LoggerText.Content = $"Load {loadSecs:0.###}s";
 
                 Task.Run(() => Pack(allItems));
             }, System.Windows.Threading.DispatcherPriority.Send);
@@ -197,24 +194,6 @@ namespace TexturePacker.Net
                 AllowRotation = true,
                 MaxSide = 2048
             };
-            bool updatedThumbnail = false;
-            void updateThumbnail()
-            {
-                if (!updatedThumbnail)
-                {
-                    foreach (Item item in allItems)
-                    {
-                        item.UpdateThumbnail();
-                        item.NotifyPropertyChanged(nameof(Item.Thumbnail));
-                    }
-                    updatedThumbnail = true;
-                }
-            }
-            Dispatcher.InvokeAsync(async () =>
-            {
-                await Task.Delay(500);
-                updateThumbnail();
-            });
 
             Rects = null;
             DataModel dataModel = new DataModel();
@@ -225,19 +204,19 @@ namespace TexturePacker.Net
 
             Dispatcher.InvokeAsync(async() =>
             {
-                updateThumbnail();
+                foreach (Item item in allItems)
+                {
+                    item.UpdateThumbnail();
+                    item.NotifyPropertyChanged(nameof(Item.Thumbnail));
+                }
                 LoggerText.Content += $" | Pack {packSecs:0.###}s";
 
                 if (result != null)
                 {
-                    DateTime renderTime = DateTime.UtcNow;
                     await Render(result, width, height);
 
-                    double renderSecs = (DateTime.UtcNow - renderTime).TotalSeconds;
-                    LoggerText.Content += $" | Render {renderSecs:0.###}s";
                     LoggerResult.Content = $"{width}x{height} {result.Sum(r => r.Width * r.Height) / (float)width / height:P}";
                     progressBar.Visibility = Visibility.Hidden;
-
                 }
                 else
                 {
@@ -409,7 +388,6 @@ namespace TexturePacker.Net
                     {
                         dashedOutline = new System.Windows.Shapes.Rectangle()
                         {
-                            StrokeThickness = 1,
                             StrokeDashArray = new DoubleCollection(new double[] { 5, 4 }),
                             Stroke = Brushes.Black
                         };
@@ -419,6 +397,7 @@ namespace TexturePacker.Net
                     dashedOutline.DataContext = found;
                     double scale = Data.GetScaleFromSiler();
                     double thickness = GetOutlineThickness(scale);
+                    dashedOutline.StrokeThickness = thickness;
                     dashedOutline.Width = found.Width + thickness;
                     dashedOutline.Height = found.Height + thickness;
                     Canvas.SetLeft(dashedOutline, found.X - thickness / 2);
