@@ -61,8 +61,8 @@ namespace TexturePacker.Net.Packager
         public bool Contains(Rect rect)
         {
             return rect.X >= this.X && rect.Y >= this.Y
-                && rect.X + rect.Width <= this.X + this.Width
-                && rect.Y + rect.Height <= this.Y + this.Height;
+                && rect.FarX <= this.FarX
+                && rect.FarY <= this.FarY;
         }
     }
 }

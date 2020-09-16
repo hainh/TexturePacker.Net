@@ -84,15 +84,23 @@
                     </TreeView.Resources>
                 </TreeView>
             </Grid>
-            <Canvas Grid.Row="0" Grid.Column="1" Name="mainCanvas" Background="#FF2E2E2E" SizeChanged="MainCanvas_SizeChanged">
+            <Canvas Grid.Row="0" Grid.Column="1" Name="mainCanvas" 
+                    Background="#FF2E2E2E"
+                    SizeChanged="MainCanvas_SizeChanged">
                 <!-- Second cell -->
                 <ScrollViewer HorizontalScrollBarVisibility="Auto"
                               VerticalScrollBarVisibility="Auto"
                               Name="mainScrollViewer"
-                              BorderBrush="Black" BorderThickness="1,1,1,1">
+                              BorderBrush="Black" BorderThickness="1,1,1,1"
+                              Background="#FF2E2E2E"
+                              MouseRightButtonDown="ImagesCanvas_MouseDown"
+                              MouseLeftButtonDown="ImagesCanvas_MouseDown">
                     <Canvas Name="imagesCanvas" Width="450" Height="450" Margin="50,50"
                             MouseWheel="ImagesCanvas_MouseWheel"
-                            MouseMove="ImagesCanvas_MouseMove">
+                            MouseMove="ImagesCanvas_MouseMove"
+                            MouseLeave="ImagesCanvas_MouseLeave"
+                            MouseRightButtonDown="ImagesCanvas_MouseDown"
+                            MouseLeftButtonDown="ImagesCanvas_MouseDown">
                         <Canvas.Background>
                             <ImageBrush ImageSource="/bgr.png"
                                         TileMode="FlipXY"
@@ -135,6 +143,7 @@
             <Slider MinWidth="220" Name="zoomSlider"
                     Value="{Binding ZoomSliderValue, UpdateSourceTrigger=PropertyChanged}"
                     Minimum="0" Maximum="220"
+                    IsMoveToPointEnabled="True"
                     Margin="0,0,0,0" SmallChange="1"
                     ValueChanged="ZoomSlider_ValueChanged"/>
             <TextBox Background="Transparent"
@@ -149,7 +158,8 @@
             <Button Content="1:1" Width="33" Padding="0,2" Margin="0,-2" Click="OneByOneBtn_Click"/>
             <Button Content="Fit" Width="33" Padding="0,2" Margin="0,-2" Click="FitBtn_Click"/>
             <Separator/>
-            <CheckBox Content="Show outlines" Margin="20,0,20,0"/>
+            <CheckBox Content="Show outlines" Margin="20,0,20,0" Name="outlineCb"
+                      Checked="OutlineCb_Checked" Unchecked="OutlineCb_Checked"/>
             <Separator/>
             <StatusBarItem Content="Status string" Name="LoggerText"/>
             <StatusBarItem Name="LoggerResult" HorizontalAlignment="Right"/>
