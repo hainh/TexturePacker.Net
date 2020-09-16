@@ -275,6 +275,21 @@ namespace TexturePacker.Net
             {
                 return;
             }
+            if (imagesCanvas.Children.Count >= Rects.Count * 3)
+            {
+                foreach (var item in imagesCanvas.Children)
+                {
+                    if (item is System.Windows.Shapes.Rectangle rectangle/* && item != dashedOutline*/)
+                    {
+                        rectangle.Visibility = Visibility.Visible;
+                    }
+                    else if (item is System.Windows.Shapes.Line diagonal)
+                    {
+                        diagonal.Visibility = Visibility.Visible;
+                    }
+                }
+                return;
+            }
             double scale = Data.GetScaleFromSiler();
             double thickness = GetOutlineThickness(scale);
             foreach (var rect in Rects)
@@ -317,7 +332,18 @@ namespace TexturePacker.Net
             {
                 return;
             }
-            imagesCanvas.Children.RemoveRange(Rects.Count, imagesCanvas.Children.Count - Rects.Count);
+            foreach (var item in imagesCanvas.Children)
+            {
+                if (item is System.Windows.Shapes.Rectangle rectangle)
+                {
+                    rectangle.Visibility = item != dashedOutline ? Visibility.Hidden : Visibility.Visible;
+                }
+                else if (item is System.Windows.Shapes.Line diagonal)
+                {
+                    diagonal.Visibility = Visibility.Hidden;
+                }
+            }
+            //imagesCanvas.Children.RemoveRange(Rects.Count, imagesCanvas.Children.Count - Rects.Count);
         }
 
         private void TreeViewItem_RequestBringIntoView(object sender, RequestBringIntoViewEventArgs e)
@@ -377,32 +403,32 @@ namespace TexturePacker.Net
                         items.Rectangle.Fill = unselectedOutlineFill;
                     }
                 });
+
                 selectedItems.Image.Opacity = 1;
                 if (outline)
                 {
                     selectedItems.Rectangle.Fill = outlineFill;
                 }
-                else
+
+                if (dashedOutline == null)
                 {
-                    if (dashedOutline == null)
+                    dashedOutline = new System.Windows.Shapes.Rectangle()
                     {
-                        dashedOutline = new System.Windows.Shapes.Rectangle()
-                        {
-                            StrokeDashArray = new DoubleCollection(new double[] { 5, 4 }),
-                            Stroke = Brushes.Black
-                        };
-                        RenderOptions.SetEdgeMode(dashedOutline, EdgeMode.Aliased);
-                        imagesCanvas.Children.Add(dashedOutline);
-                    }
-                    dashedOutline.DataContext = found;
-                    double scale = Data.GetScaleFromSiler();
-                    double thickness = GetOutlineThickness(scale);
-                    dashedOutline.StrokeThickness = thickness;
-                    dashedOutline.Width = found.Width + thickness;
-                    dashedOutline.Height = found.Height + thickness;
-                    Canvas.SetLeft(dashedOutline, found.X - thickness / 2);
-                    Canvas.SetTop(dashedOutline, found.Y - thickness / 2);
+                        StrokeDashArray = new DoubleCollection(new double[] { 5, 4 }),
+                        Stroke = Brushes.Black
+                    };
+                    RenderOptions.SetEdgeMode(dashedOutline, EdgeMode.Aliased);
+                    imagesCanvas.Children.Add(dashedOutline);
                 }
+                dashedOutline.DataContext = found;
+                double scale = Data.GetScaleFromSiler();
+                double thickness = GetOutlineThickness(scale);
+                dashedOutline.StrokeThickness = thickness;
+                dashedOutline.Width = found.Width + thickness;
+                dashedOutline.Height = found.Height + thickness;
+                Canvas.SetLeft(dashedOutline, found.X - thickness / 2);
+                Canvas.SetTop(dashedOutline, found.Y - thickness / 2);
+                dashedOutline.Visibility = outline ? Visibility.Hidden : Visibility.Visible;
             }
             else
             {
@@ -415,7 +441,7 @@ namespace TexturePacker.Net
                         items.Rectangle.Fill = outlineFill;
                     }
                 });
-                if (dashedOutline != null)
+                if (dashedOutline != null && e.RightButton == MouseButtonState.Pressed)
                 {
                     imagesCanvas.Children.Remove(dashedOutline);
                     dashedOutline = null;
