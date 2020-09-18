@@ -351,29 +351,9 @@ namespace TexturePacker.Net
             e.Handled = true;
         }
 
-        private void GenerateTestImgs()
-        {
-            const int length = 100;
-            var random = new Random((int)(new DateTime(2020, 1, 1) - DateTime.UtcNow).TotalHours);
-            for (int i = 0; i < length; i++)
-            {
-                int width = random.Next(10, 200);
-                int height = random.Next(10, 200);
-                WriteableBitmap wb = BitmapFactory.New(width, height);
-                wb.FillRectangle(0, 0, width, height, AllColors[i % AllColors.Length]);
-                wb.DrawRectangle(0, 0, width, height, AllColors[(i + 2) % AllColors.Length]);
-                wb.DrawLine(0, 0, width, height, AllColors[(i + 3) % AllColors.Length]);
-
-                PngBitmapEncoder encoder = new PngBitmapEncoder();
-                encoder.Frames.Add(BitmapFrame.Create(wb));
-                using var stream = new FileStream($"img_{i + 1:00}.png", FileMode.Create);
-                encoder.Save(stream);
-            }
-        }
-
         private void ImagesCanvas_MouseDown(object sender, MouseButtonEventArgs e)
         {
-            //e.Handled = true;
+            e.Handled = true;
             if (Rects == null || e.MiddleButton == MouseButtonState.Pressed)
             {
                 return;
@@ -462,7 +442,6 @@ namespace TexturePacker.Net
             RenderOptions.SetBitmapScalingMode(imagesCanvas, BitmapScalingMode.NearestNeighbor);
             LoggerText.Content = string.Empty;
             LoadDeviceScale();
-            //GenerateTestImgs();
             Data = new DataModel()
             {
                 ZoomSliderValue = 110,
